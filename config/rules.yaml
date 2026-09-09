@@ -1,0 +1,146 @@
+# ---------------------------------------------------------------------------
+# Support automation rules
+# ---------------------------------------------------------------------------
+# Rules are checked TOP TO BOTTOM against the latest customer message in the
+# ticket. The first rule that matches wins - order matters, put your most
+# specific / highest-priority rules first (e.g. "angry customer" before a
+# generic FAQ catch-all).
+#
+# match:
+#   any_keywords     - fires if the message contains ANY of these (case-insensitive)
+#   all_keywords     - fires only if the message contains ALL of these
+#   tags             - fires if the ticket already has any of these Zendesk tags
+#
+# action: solve | pending | escalate | no_action
+#   solve      - AI answers the question and the ticket is marked Solved
+#   pending    - AI replies (usually asking for info) and ticket goes to Pending,
+#                i.e. "waiting on the customer"
+#   escalate   - ticket is left Open, tagged, and ALWAYS held for a human -
+#                even in auto mode. Use this for anything with money, legal,
+#                or brand-reputation risk.
+#   no_action  - completely hands off: no AI call, no reply, no status
+#                change. Only tags are applied (if set). Use this for
+#                tickets that are out of scope entirely - e.g. locations
+#                you don't provide support for.
+#
+# force_human_review: true means this rule NEVER auto-sends, regardless of MODE.
+# add_tags: tags to stamp on the ticket when this rule fires (for reporting).
+# drafting_hint: extra instruction passed to the AI when it writes the reply.
+#
+# Matching runs against the ticket SUBJECT plus the latest customer message,
+# so a location that only shows up in the subject line (e.g. from a
+# location-specific contact form) is still caught.
+# ---------------------------------------------------------------------------
+
+rules:
+  # Wine and Canvas locations that run their OWN customer support - never
+  # respond to, tag, or touch tickets for these. Bonnie/Amber only handle a
+  # subset of locations; everything else stays hands-off.
+  #
+  # Source: the location dropdown on https://wineandcanvas.com/contact-us/
+  # and each subsite's own contact form (titled with its location). This
+  # assumes the location the customer selected/the subsite name shows up in
+  # the ticket subject or body - confirm that's actually true by checking a
+  # real ticket once this is live, and adjust the phrases below if the
+  # wording differs.
+  #
+  # TODO Christopher: you listed "Las Vegas, NV" - the dropdown also has a
+  # separate "Henderson, NV" option (Vegas metro area). Should that be
+  # excluded too? Included below for now - remove it if Henderson is one you
+  # DO handle.
+  - name: out_of_scope_location
+    match:
+      any_keywords:
+        - "columbus, oh"
+        - "toledo, oh"
+        - "south bend, in"
+        - "bloomington, in"
+        - "minneapolis, mn"
+        - "rochester / southeastern minnesota"
+        - "rochester, mn"
+        - "las vegas / summerlin, nv"
+        - "las vegas, nv"
+        - "henderson, nv"
+    action: no_action
+    force_human_review: false
+    add_tags: ["out_of_scope_location"]
+
+  - name: refund_or_cancellation_request
+    match:
+      any_keywords: ["refund", "cancel my", "cancellation", "money back", "chargeback"]
+    action: escalate
+    force_human_review: true
+    add_tags: ["needs_human", "refund_request"]
+    drafting_hint: >
+      Acknowledge the request and let them know a team member will follow up
+      shortly to process it. Do NOT promise a refund or cancellation yourself.
+
+  - name: angry_or_upset_customer
+    match:
+      any_keywords: ["unacceptable", "furious", "scam", "lawsuit", "terrible experience", "worst"]
+    action: escalate
+    force_human_review: true
+    add_tags: ["needs_human", "upset_customer"]
+    drafting_hint: >
+      Be warm and empathetic, apologize for the frustration, and say a team
+      member is personally looking into it. Do not try to resolve the
+      complaint yourself.
+
+  - name: licensee_recruitment_inquiry
+    match:
+      any_keywords: ["become a licensee", "open a franchise", "start my own", "how do i become", "territory"]
+    action: pending
+    force_human_review: false
+    add_tags: ["licensee_lead"]
+    drafting_hint: >
+      Thank them for their interest and direct them to apply at
+      paintingandvino.com/become-a-painting-and-vino-licensee/ - this is
+      the correct shared application link for both brands (confirmed by
+      Christopher), not a mistake. Do NOT state specific
+      terms like revenue split, fees, or territorial exclusivity - those
+      aren't confirmed for this reply and should come from a human.
+
+  - name: groupon_or_promo_code
+    match:
+      any_keywords: ["groupon", "livingsocial", "living social", "voucher", "promo code", "discount code", "coupon"]
+    action: pending
+    force_human_review: false
+    add_tags: ["promo_code_question"]
+    drafting_hint: >
+      We don't have confirmed Groupon/voucher policy language for Wine and
+      Canvas (unlike Painting and Vino, no Groupon-handling macros were
+      found for this brand) - do NOT guess at redemption steps,
+      expiration rules, or a price-match code. Acknowledge the question
+      and say a team member will follow up with the details.
+
+  - name: event_booking_question
+    match:
+      any_keywords: ["book an event", "book a class", "private event", "date availability", "how do i book"]
+    action: pending
+    force_human_review: false
+    add_tags: ["booking_question"]
+    drafting_hint: >
+      Point them to the booking page for their city and ask which date/venue
+      they're interested in if not already stated, so we can confirm
+      availability.
+
+  - name: general_faq
+    match:
+      any_keywords: ["what is", "how does", "do you offer", "hours", "location", "price", "cost", "policy"]
+    action: solve
+    force_human_review: false
+    add_tags: ["faq_auto_answered"]
+    drafting_hint: >
+      Answer directly and completely from the knowledge base. If the
+      knowledge base doesn't clearly cover it, do NOT guess - fall back to
+      pending and ask a clarifying question instead.
+
+  - name: fallback_unclassified
+    match: {}
+    action: pending
+    force_human_review: true
+    add_tags: ["needs_human", "unclassified"]
+    drafting_hint: >
+      Draft a best-effort helpful reply, but this ticket type isn't covered
+      by a specific rule yet - flag it for a human to review and, if it's a
+      recurring pattern, ask Christopher to add a rule for it.

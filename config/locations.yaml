@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# Managed locations - Wine and Canvas
+# ---------------------------------------------------------------------------
+# Checked top to bottom against the ticket subject + latest customer
+# message; first match wins. Each location's pricing/booking/venue details
+# live in their own file under config/knowledge-base/locations/<file>,
+# combined with config/knowledge-base/shared.md when the AI drafts a reply.
+#
+# This is separate from (and runs after) the out_of_scope_location rule in
+# rules.yaml, which already filters out the self-managed locations
+# (Las Vegas, Toledo, Columbus, South Bend, Rochester, Minneapolis,
+# Bloomington) before a ticket ever reaches here.
+#
+# NOTE: sourced from https://wineandcanvas.com/locations/ and each
+# location's own page - confirm these are current and complete.
+#
+# FLAGGED FOR YOU:
+#  - "Fort Lauderdale / Miami, FL" - RESOLVED via the team's actual Zendesk
+#    macros (pulled 2026-09-09): it shows up consistently in the private-
+#    event pricing tiers, restaurant lists, and promo emails alongside
+#    Tampa/Fort Myers/Indianapolis, so it's kept here as a normal managed
+#    location. Note Miami itself prices like Orlando/Naples, not like Fort
+#    Lauderdale - see fort-lauderdale.md.
+#  - "Cadillac, MI" - confirmed via macros to be a normal private-events
+#    market (same pricing tier as Tampa/Fort Myers/Indianapolis/Fort
+#    Lauderdale); it just doesn't appear to have its own public event
+#    calendar page. Kept here as-is.
+#  - "Adrian, MI" appears in the contact form's location dropdown but
+#    doesn't show up on the current locations page at all, and no page was
+#    found for it, and it didn't appear anywhere in the team's macros
+#    either - may no longer be active. Let me know if you handle support
+#    for it and I'll add it.
+# ---------------------------------------------------------------------------
+
+locations:
+  - slug: fort-myers
+    display_name: "Fort Myers / Cape Coral / Naples, FL"
+    file: fort-myers.md
+    match_keywords: ["fort myers", "ft myers", "cape coral", "naples"]
+
+  - slug: tampa
+    display_name: "Tampa / St. Pete / Clearwater, FL"
+    file: tampa.md
+    match_keywords: ["tampa", "st. pete", "st pete", "clearwater"]
+
+  - slug: orlando
+    display_name: "Orlando, FL"
+    file: orlando.md
+    match_keywords: ["orlando"]
+
+  - slug: fort-lauderdale
+    display_name: "Fort Lauderdale / Miami, FL"
+    file: fort-lauderdale.md
+    match_keywords: ["fort lauderdale", "ft lauderdale", "miami"]
+
+  - slug: indianapolis
+    display_name: "Indianapolis, IN"
+    file: indianapolis.md
+    match_keywords: ["indianapolis", "greenwood, in", "fishers, in", "carmel, in", "westfield, in", "avon, in", "plainfield, in"]
+
+  - slug: grand-rapids
+    display_name: "Grand Rapids, MI"
+    file: grand-rapids.md
+    match_keywords: ["grand rapids"]
+
+  - slug: kalamazoo
+    display_name: "Kalamazoo, MI"
+    file: kalamazoo.md
+    match_keywords: ["kalamazoo", "battle creek", "mattawan", "otsego", "coldwater"]
+
+  - slug: lansing
+    display_name: "Lansing / Jackson, MI"
+    file: lansing.md
+    match_keywords: ["lansing", "jackson, mi", "okemos", "owosso"]
+
+  - slug: cadillac
+    display_name: "Cadillac, MI"
+    file: cadillac.md
+    match_keywords: ["cadillac"]
