@@ -20,6 +20,7 @@ rate is the Orlando/Naples tier instead ($45 standard / $50 corporate) -
 don't guess which applies if it's ambiguous, ask.
 
 ## Booking
+Direct link: https://wineandcanvas.com/florida/fort-lauderdale/
 Book through the event listing's "Get Tickets" button - each event has its
 own registration page.
 

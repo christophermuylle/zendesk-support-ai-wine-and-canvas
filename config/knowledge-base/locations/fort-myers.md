@@ -8,6 +8,7 @@ events (e.g. "Paint Your Pet"): around $55. Private party example seen:
 $45/person (Cooperleaf Golf Club).
 
 ## Booking
+Direct link: https://wineandcanvas.com/florida/fort-myers/
 Book through the event listing's "Get Tickets" button on the website -
 each event has its own registration page.
 

@@ -8,6 +8,7 @@ Events range $28-$80 depending on event type (e.g. seasonal events around
 $28-$40, bachelorette painting parties $40-$80).
 
 ## Booking
+Direct link: https://wineandcanvas.com/michigan/grand-rapids/
 Book through the event listing's "Get Tickets" button - each event has its
 own registration page.
 

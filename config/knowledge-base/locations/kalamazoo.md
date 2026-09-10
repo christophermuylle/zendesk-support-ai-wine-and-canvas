@@ -7,6 +7,7 @@ relying on it.
 Events range $15-$38 per person.
 
 ## Booking
+Direct link: https://wineandcanvas.com/michigan/kalamazoo/
 Book through the event listing's "Get Tickets" button - each event has its
 own registration page.
 

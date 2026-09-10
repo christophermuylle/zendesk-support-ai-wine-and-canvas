@@ -16,7 +16,10 @@ a quote from the team, since group size and standard-vs-corporate change
 the price.
 
 ## Booking
-Contact (866) 631-0226 or support@wineandcanvas.com for a quote.
+No direct link on file - confirmed (2026-09-10) there's no dedicated
+public event calendar page for Cadillac. Don't invent one; point the
+customer to (866) 631-0226 or support@wineandcanvas.com for a quote/
+current dates instead.
 
 ## Venue
 Mobile studio - they travel to the customer's location. Based in

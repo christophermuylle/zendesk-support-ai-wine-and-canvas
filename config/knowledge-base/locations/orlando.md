@@ -7,6 +7,7 @@ Standard events: $45/person. Private events: roughly $39-$78, varies by
 group size/package.
 
 ## Booking
+Direct link: https://wineandcanvas.com/florida/orlando/
 Book through the event listing's "Get Tickets" button - each event has its
 own registration page.
 

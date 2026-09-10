@@ -6,6 +6,7 @@ Source: wineandcanvas.com/florida/tampa/ - confirm current before relying on it.
 Standard events: $35-$39. Some private events: $39-$78.
 
 ## Booking
+Direct link: https://wineandcanvas.com/florida/tampa/
 Book through the event listing's "Get Tickets" button - each event has its
 own registration page.
 

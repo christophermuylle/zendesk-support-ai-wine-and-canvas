@@ -8,6 +8,7 @@ Events range widely, roughly $29-$135 depending on event type (standard
 paint and sip on the lower end; wood cutout/specialty events higher).
 
 ## Booking
+Direct link: https://wineandcanvas.com/michigan/lansing/
 Book through the event listing's "Get Tickets" button. On-Demand Paint and
 Sip and eGift Certificates are also available.
 

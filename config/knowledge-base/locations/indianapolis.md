@@ -7,7 +7,9 @@ Standard events: $39-$49. Private parties: $40-$80, varies by event. Gift
 certificates available.
 
 ## Booking
-Book online at wineandcanvas.com/indianapolis/indianapolis-painting-party/.
+Direct link: https://wineandcanvas.com/indianapolis/
+Book through the event listing's "Get Tickets" button on the website -
+each event has its own registration page.
 
 ## Venues (examples - always confirm the specific one on the event listing)
 Mobile across Greater Indianapolis - Greenwood, Fishers, Carmel,

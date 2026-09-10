@@ -144,7 +144,26 @@ rules:
     drafting_hint: >
       Point them to the booking page for their city and ask which date/venue
       they're interested in if not already stated, so we can confirm
-      availability.
+      availability. If a location was matched, include that location's
+      direct event calendar link (see the "Direct link" line in the
+      matched location's Booking section) rather than just saying "check
+      our website."
+
+  - name: event_sign_up_question
+    match:
+      any_keywords: ["how do i sign up", "signing up", "sign up for", "how do i register", "register for", "how do i attend", "looking for an event"]
+    action: solve
+    force_human_review: false
+    add_tags: ["faq_auto_answered", "booking_question"]
+    drafting_hint: >
+      This is usually a fully-answerable question, not one that needs to
+      wait on the customer - if a location was matched, give them that
+      location's direct event calendar link (see the "Direct link" line
+      in the matched location's Booking section, and the shared knowledge
+      base's "Linking to the event calendar" section for the expected
+      phrasing/format) so they can browse and register themselves. Only
+      fall back to pending if no location could be matched and you need to
+      ask which city they mean.
 
   - name: general_faq
     match:

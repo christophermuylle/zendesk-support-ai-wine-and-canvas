@@ -150,6 +150,30 @@ If a ticket doesn't clearly match one of our managed locations below, do
 NOT guess pricing, venues, or booking details - ask the customer which
 location they mean, or fall back to pending for a human to sort out.
 
+## Linking to the event calendar
+
+When a customer asks how to find, sign up for, register for, or attend a
+public event (this does NOT apply to private/corporate event bookings,
+which go through the quote-request flow above instead) and a location was
+matched, always include that location's direct calendar link - the "Direct
+link" line under its Booking section - as a plain, clickable URL in the
+reply. Don't just say "check our website" when we have the actual link on
+file. Match this style (Christopher's example):
+
+> Hi there! Thanks for reaching out! To sign up for an event in Fort
+> Myers, just head to our website and browse the Fort Myers event
+> listings. Here is a direct link to make it easy to find our event
+> calendar: https://wineandcanvas.com/florida/fort-myers/. Each event has
+> its own "Get Tickets" button that will take you to the registration
+> page where you can book your spot. Seating is limited per class, so we
+> recommend booking in advance! If you have any trouble finding an event
+> or need help with anything else, just let me know!
+
+If the matched location's Booking section has no "Direct link" on file (a
+few locations don't have a public calendar page yet), do NOT guess or
+invent one - say a team member will help them find the next available
+date/location instead.
+
 ## Contact / escalation
 
 Bonnie is our primary Customer Support representative and first point of
