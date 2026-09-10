@@ -27,8 +27,11 @@ export interface IZendeskClient {
     body: string,
     opts: { isPublic: boolean; status?: ActionType; addTags?: string[] }
   ): Promise<void>;
-  /** Update status and/or tags WITHOUT posting a comment (used for out-of-scope tickets). */
-  updateTicket(ticketId: number, opts: { status?: ZendeskStatus; addTags?: string[] }): Promise<void>;
+  /** Update status, tags, and/or custom fields WITHOUT posting a comment (used for out-of-scope tickets and rule-driven field updates like order confirmations). */
+  updateTicket(
+    ticketId: number,
+    opts: { status?: ZendeskStatus; addTags?: string[]; fields?: Array<{ id: number; value: string | null }> }
+  ): Promise<void>;
 }
 
 export class ZendeskClient implements IZendeskClient {
@@ -126,11 +129,19 @@ export class ZendeskClient implements IZendeskClient {
    * without touching existing ones. (The separate PUT /tickets/{id}/tags.json
    * endpoint instead REPLACES the whole tag list - deliberately not used
    * here, since that could wipe tags set by other Zendesk triggers/apps.)
+   *
+   * `fields` sets Zendesk custom ticket fields (e.g. the "Reason for
+   * Customer Contacting Us" tagger field) - passed straight through as the
+   * `fields` array the ticket API expects: [{ id, value }, ...].
    */
-  async updateTicket(ticketId: number, opts: { status?: ZendeskStatus; addTags?: string[] }): Promise<void> {
+  async updateTicket(
+    ticketId: number,
+    opts: { status?: ZendeskStatus; addTags?: string[]; fields?: Array<{ id: number; value: string | null }> }
+  ): Promise<void> {
     const ticket: Record<string, unknown> = {};
     if (opts.status) ticket.status = opts.status;
     if (opts.addTags?.length) ticket.additional_tags = opts.addTags;
+    if (opts.fields?.length) ticket.fields = opts.fields;
     if (Object.keys(ticket).length === 0) return;
     await this.request(`/tickets/${ticketId}.json`, {
       method: "PUT",

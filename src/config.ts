@@ -28,6 +28,16 @@ export function loadLocationSnippet(file: string): string | null {
 
 export type Mode = "draft" | "auto";
 
+// Zendesk custom field used by the "order_confirmation" rule action (see
+// src/pipeline.ts): the "Reason for Customer Contacting Us" tagger field.
+// Setting it to this option's value also auto-applies the matching
+// "order_confirmation" Zendesk tag. Configurable via env in case the field
+// or option ever gets rebuilt with a new ID, but these defaults are the
+// real IDs confirmed against Wine and Canvas's Zendesk (tickets #28637,
+// #28636, #28625).
+export const ORDER_CONFIRMATION_FIELD_ID = Number(process.env.ORDER_CONFIRMATION_FIELD_ID ?? 24492007664795);
+export const ORDER_CONFIRMATION_FIELD_VALUE = process.env.ORDER_CONFIRMATION_FIELD_VALUE ?? "order_confirmation";
+
 export const env = {
   zendesk: {
     subdomain: required("ZENDESK_SUBDOMAIN"),

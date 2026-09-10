@@ -5,19 +5,28 @@
 import type { IAiDrafter } from "./ai.js";
 import type { RulesEngine } from "./rules.js";
 import type { LocationResolver } from "./locations.js";
-import type { IZendeskClient } from "./zendesk.js";
+import type { IZendeskClient, ZendeskStatus } from "./zendesk.js";
 import type { Mode } from "./config.js";
+import { ORDER_CONFIRMATION_FIELD_ID, ORDER_CONFIRMATION_FIELD_VALUE } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
+import { extractOrderTotal } from "./util.js";
 
 export interface PipelineResult {
   ticketId: number;
   ruleDecision: RuleDecision;
   matchedLocation: string | null;
-  // Absent when the rules engine short-circuited to "no_action" (e.g. an
-  // out-of-scope-location ticket) - the AI is never called for those, so
-  // there's nothing to draft and no cost incurred.
+  // Absent when the rules engine short-circuited to "no_action" or
+  // "order_confirmation" (e.g. an out-of-scope-location ticket, or an
+  // automated new-order notification) - the AI is never called for those,
+  // so there's nothing to draft and no cost incurred.
   draft?: DraftResult;
-  finalAction: "posted_public_reply" | "posted_internal_note" | "skipped_out_of_scope" | "no_op";
+  finalAction:
+    | "posted_public_reply"
+    | "posted_internal_note"
+    | "skipped_out_of_scope"
+    | "order_confirmation_solved"
+    | "order_confirmation_left_open"
+    | "no_op";
   mode: Mode;
 }
 
@@ -66,6 +75,30 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
   if (ruleDecision.action === "no_action") {
     await deps.zendesk.updateTicket(ticketId, { status: "open", addTags: ruleDecision.addTags });
     return { ticketId, ruleDecision, matchedLocation: null, finalAction: "skipped_out_of_scope", mode: deps.mode };
+  }
+
+  // "order_confirmation" is a purely mechanical rule for automated "New
+  // order" notification tickets from the storefront - it's not a real
+  // support question, so no AI draft and no reply/comment of any kind, in
+  // draft mode or auto mode alike. We just categorize the ticket (which
+  // also auto-applies Zendesk's "order_confirmation" tag via the tagger
+  // field) and close it - UNLESS the order total is $0 or unparseable, in
+  // which case it's left Open for a human to check by hand.
+  if (ruleDecision.action === "order_confirmation") {
+    const total = extractOrderTotal(ctx.ticket.description ?? "");
+    const status: ZendeskStatus = total !== null && total > 0 ? "solved" : "open";
+    await deps.zendesk.updateTicket(ticketId, {
+      status,
+      addTags: ruleDecision.addTags,
+      fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: ORDER_CONFIRMATION_FIELD_VALUE }],
+    });
+    return {
+      ticketId,
+      ruleDecision,
+      matchedLocation: null,
+      finalAction: status === "solved" ? "order_confirmation_solved" : "order_confirmation_left_open",
+      mode: deps.mode,
+    };
   }
 
   const { text: knowledgeBase, locationDisplayName } = buildKnowledgeBase(deps, ctx);

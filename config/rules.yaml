@@ -11,17 +11,25 @@
 #   all_keywords     - fires only if the message contains ALL of these
 #   tags             - fires if the ticket already has any of these Zendesk tags
 #
-# action: solve | pending | escalate | no_action
-#   solve      - AI answers the question and the ticket is marked Solved
-#   pending    - AI replies (usually asking for info) and ticket goes to Pending,
-#                i.e. "waiting on the customer"
-#   escalate   - ticket is left Open, tagged, and ALWAYS held for a human -
-#                even in auto mode. Use this for anything with money, legal,
-#                or brand-reputation risk.
-#   no_action  - completely hands off: no AI call, no reply, no status
-#                change. Only tags are applied (if set). Use this for
-#                tickets that are out of scope entirely - e.g. locations
-#                you don't provide support for.
+# action: solve | pending | escalate | no_action | order_confirmation
+#   solve               - AI answers the question and the ticket is marked Solved
+#   pending             - AI replies (usually asking for info) and ticket goes to
+#                         Pending, i.e. "waiting on the customer"
+#   escalate            - ticket is left Open, tagged, and ALWAYS held for a human -
+#                         even in auto mode. Use this for anything with money, legal,
+#                         or brand-reputation risk.
+#   no_action           - completely hands off: no AI call, no reply, no status
+#                         change. Only tags are applied (if set). Use this for
+#                         tickets that are out of scope entirely - e.g. locations
+#                         you don't provide support for.
+#   order_confirmation  - for automated "New order" notification tickets, not a
+#                         real support question: no AI call, no reply of any
+#                         kind (draft or auto mode). Sets the "Reason for
+#                         Customer Contacting Us" field to Order Confirmation
+#                         (which also auto-applies the order_confirmation tag),
+#                         then Solves the ticket if the order total is > $0, or
+#                         leaves it Open for a human if it's $0/unparseable. See
+#                         src/pipeline.ts's order_confirmation branch.
 #
 # force_human_review: true means this rule NEVER auto-sends, regardless of MODE.
 # add_tags: tags to stamp on the ticket when this rule fires (for reporting).
@@ -64,6 +72,20 @@ rules:
     action: no_action
     force_human_review: false
     add_tags: ["out_of_scope_location"]
+
+  # Automated "New order" notification tickets from the storefront - these
+  # are order receipts Zendesk turns into tickets, not a real customer
+  # question, so this is matched and handled right after the out-of-scope
+  # location check (Christopher's rule, same as Painting and Vino: "Tickets
+  # with 'New order' in the subject line or in the description should be
+  # set to 'Order Confirmation' and status set to 'solved' only if the
+  # order total is greater than $0. If it is $0 leave it open... to
+  # handle." - no AI reply draft). See action doc above.
+  - name: new_order_confirmation
+    match:
+      any_keywords: ["new order"]
+    action: order_confirmation
+    force_human_review: false
 
   - name: refund_or_cancellation_request
     match:
