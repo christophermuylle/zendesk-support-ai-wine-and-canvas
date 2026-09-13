@@ -126,7 +126,13 @@ rules:
 
   - name: event_booking_question
     match:
-      any_keywords: ["book an event", "book a class", "private event", "date availability", "how do i book"]
+      # "party request", "guests:", "preferred date" added 2026-09-13 after
+      # ticket #28740 ("Party Request from Sarah Taylor") fell through to
+      # general_faq unmatched - real Private Event inquiries come in via a
+      # location's contact form as "Party Request from [Name]" with
+      # structured Name/Email/Guests/Preferred Date/Location fields, not the
+      # phrases below, so they need their own keywords.
+      any_keywords: ["book an event", "book a class", "private event", "date availability", "how do i book", "party request", "guests:", "preferred date"]
     action: pending
     force_human_review: false
     add_tags: ["booking_question"]
