@@ -68,12 +68,22 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
 
   // "no_action" means this ticket is out of scope entirely (e.g. a location
   // we don't provide support for) - never reply to it or answer on its
-  // behalf. No AI call, no comment. It IS explicitly set to Open (not left
-  // whatever status it arrived in, and not Solved/Pending) and tagged, so it
-  // surfaces in the queue for Bonnie to notice and forward to the location
-  // that actually owns it.
+  // behalf. No AI call, no comment. Only tags are applied.
+  //
+  // Status: a brand-new ticket gets moved from "new" to "open" so it
+  // surfaces in the queue for Bonnie/Amber to notice and forward to
+  // whoever actually owns it. It must NOT force status on every reprocess,
+  // though - this webhook re-fires on ANY ticket update, including an
+  // agent marking the ticket Solved themselves, which re-matches the same
+  // rule. Forcing status:"open" unconditionally here was silently
+  // reopening tickets agents had just solved seconds earlier - confirmed
+  // as the cause of Wine and Canvas (and Painting and Vino) tickets
+  // refusing to stay Solved, 2026-09-13. Once a human has moved it off
+  // "new" (solved it, left it pending, whatever), leave status alone from
+  // then on.
   if (ruleDecision.action === "no_action") {
-    await deps.zendesk.updateTicket(ticketId, { status: "open", addTags: ruleDecision.addTags });
+    const statusUpdate: { status?: ZendeskStatus } = ctx.ticket.status === "new" ? { status: "open" } : {};
+    await deps.zendesk.updateTicket(ticketId, { ...statusUpdate, addTags: ruleDecision.addTags });
     return { ticketId, ruleDecision, matchedLocation: null, finalAction: "skipped_out_of_scope", mode: deps.mode };
   }
 
