@@ -38,6 +38,15 @@
 # Matching runs against the ticket SUBJECT plus the latest customer message,
 # so a location that only shows up in the subject line (e.g. from a
 # location-specific contact form) is still caught.
+#
+# SCOPE (Christopher, 2026-09-13): only draft AI replies for Private Event
+# inquiries (event_booking_question) and ticket/order confirmations
+# (new_order_confirmation). Everything else below is set to no_action -
+# tagged and left Open for a human, no AI call, no reply of any kind - even
+# though several of these rules used to draft. Same change applied to the
+# Painting and Vino deployment's rules.yaml. Do not add solve/pending/
+# escalate actions outside those two categories without Christopher
+# explicitly asking again.
 # ---------------------------------------------------------------------------
 
 rules:
@@ -90,50 +99,30 @@ rules:
   - name: refund_or_cancellation_request
     match:
       any_keywords: ["refund", "cancel my", "cancellation", "money back", "chargeback"]
-    action: escalate
-    force_human_review: true
+    action: no_action
+    force_human_review: false
     add_tags: ["needs_human", "refund_request"]
-    drafting_hint: >
-      Acknowledge the request and let them know a team member will follow up
-      shortly to process it. Do NOT promise a refund or cancellation yourself.
 
   - name: angry_or_upset_customer
     match:
       any_keywords: ["unacceptable", "furious", "scam", "lawsuit", "terrible experience", "worst"]
-    action: escalate
-    force_human_review: true
+    action: no_action
+    force_human_review: false
     add_tags: ["needs_human", "upset_customer"]
-    drafting_hint: >
-      Be warm and empathetic, apologize for the frustration, and say a team
-      member is personally looking into it. Do not try to resolve the
-      complaint yourself.
 
   - name: licensee_recruitment_inquiry
     match:
       any_keywords: ["become a licensee", "open a franchise", "start my own", "how do i become", "territory"]
-    action: pending
+    action: no_action
     force_human_review: false
     add_tags: ["licensee_lead"]
-    drafting_hint: >
-      Thank them for their interest and direct them to apply at
-      paintingandvino.com/become-a-painting-and-vino-licensee/ - this is
-      the correct shared application link for both brands (confirmed by
-      Christopher), not a mistake. Do NOT state specific
-      terms like revenue split, fees, or territorial exclusivity - those
-      aren't confirmed for this reply and should come from a human.
 
   - name: groupon_or_promo_code
     match:
       any_keywords: ["groupon", "livingsocial", "living social", "voucher", "promo code", "discount code", "coupon"]
-    action: pending
+    action: no_action
     force_human_review: false
     add_tags: ["promo_code_question"]
-    drafting_hint: >
-      We don't have confirmed Groupon/voucher policy language for Wine and
-      Canvas (unlike Painting and Vino, no Groupon-handling macros were
-      found for this brand) - do NOT guess at redemption steps,
-      expiration rules, or a price-match code. Acknowledge the question
-      and say a team member will follow up with the details.
 
   - name: event_booking_question
     match:
@@ -152,36 +141,19 @@ rules:
   - name: event_sign_up_question
     match:
       any_keywords: ["how do i sign up", "signing up", "sign up for", "how do i register", "register for", "how do i attend", "looking for an event"]
-    action: solve
+    action: no_action
     force_human_review: false
     add_tags: ["faq_auto_answered", "booking_question"]
-    drafting_hint: >
-      This is usually a fully-answerable question, not one that needs to
-      wait on the customer - if a location was matched, give them that
-      location's direct event calendar link (see the "Direct link" line
-      in the matched location's Booking section, and the shared knowledge
-      base's "Linking to the event calendar" section for the expected
-      phrasing/format) so they can browse and register themselves. Only
-      fall back to pending if no location could be matched and you need to
-      ask which city they mean.
 
   - name: general_faq
     match:
       any_keywords: ["what is", "how does", "do you offer", "hours", "location", "price", "cost", "policy"]
-    action: solve
+    action: no_action
     force_human_review: false
     add_tags: ["faq_auto_answered"]
-    drafting_hint: >
-      Answer directly and completely from the knowledge base. If the
-      knowledge base doesn't clearly cover it, do NOT guess - fall back to
-      pending and ask a clarifying question instead.
 
   - name: fallback_unclassified
     match: {}
-    action: pending
-    force_human_review: true
+    action: no_action
+    force_human_review: false
     add_tags: ["needs_human", "unclassified"]
-    drafting_hint: >
-      Draft a best-effort helpful reply, but this ticket type isn't covered
-      by a specific rule yet - flag it for a human to review and, if it's a
-      recurring pattern, ask Christopher to add a rule for it.
