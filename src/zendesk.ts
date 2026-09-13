@@ -84,6 +84,27 @@ export class ZendeskClient implements IZendeskClient {
     }
   }
 
+  /**
+   * Zendesk's `additional_tags` convenience field on a ticket PUT is
+   * silently ignored on this account: sending
+   * `{ ticket: { additional_tags: [...] } }` gets a 200 back but the tag
+   * never actually lands on the ticket. Confirmed 2026-09-13 by testing
+   * directly against production - this was the root cause of every
+   * no_action / pending / escalate rule's tags never showing up (only
+   * order_confirmation ever worked, and that tag comes from the "Reason
+   * for Customer Contacting Us" tagger field's side effect, not from
+   * additional_tags at all). The plain `tags` field (full replace) DOES
+   * work, so work around it by fetching the ticket's current tags and
+   * sending the union back. Not atomic with whatever else the caller is
+   * changing in the same request - a tag added by a human between this
+   * GET and the follow-up PUT could theoretically be missed - but that's
+   * a far smaller risk than every AI-applied tag silently vanishing.
+   */
+  private async mergeTags(ticketId: number, newTags: string[]): Promise<string[]> {
+    const current = await this.getTicket(ticketId);
+    return [...new Set([...(current.tags ?? []), ...newTags])];
+  }
+
   /** Fetch everything the rules engine + AI need in one shot. */
   async getTicketContext(ticketId: number): Promise<TicketContext> {
     const ticket = await this.getTicket(ticketId);
@@ -112,7 +133,7 @@ export class ZendeskClient implements IZendeskClient {
       ticket.status = statusMap[opts.status];
     }
     if (opts.addTags?.length) {
-      ticket.additional_tags = opts.addTags;
+      ticket.tags = await this.mergeTags(ticketId, opts.addTags);
     }
     await this.request(`/tickets/${ticketId}.json`, {
       method: "PUT",
@@ -125,10 +146,10 @@ export class ZendeskClient implements IZendeskClient {
    * out-of-scope tickets (e.g. wrong location) that should stay silent but
    * still land in the right queue for a human to redirect.
    *
-   * Uses the `additional_tags` field on the ticket update, which ADDS tags
-   * without touching existing ones. (The separate PUT /tickets/{id}/tags.json
-   * endpoint instead REPLACES the whole tag list - deliberately not used
-   * here, since that could wipe tags set by other Zendesk triggers/apps.)
+   * Adds tags via the plain `tags` field (see mergeTags - `additional_tags`
+   * doesn't actually work on this account). This IS a full replace under
+   * the hood, but mergeTags reads the ticket's current tags first and
+   * includes them, so nothing set by another trigger/app gets wiped.
    *
    * `fields` sets Zendesk custom ticket fields (e.g. the "Reason for
    * Customer Contacting Us" tagger field) - passed straight through as the
@@ -140,7 +161,7 @@ export class ZendeskClient implements IZendeskClient {
   ): Promise<void> {
     const ticket: Record<string, unknown> = {};
     if (opts.status) ticket.status = opts.status;
-    if (opts.addTags?.length) ticket.additional_tags = opts.addTags;
+    if (opts.addTags?.length) ticket.tags = await this.mergeTags(ticketId, opts.addTags);
     if (opts.fields?.length) ticket.fields = opts.fields;
     if (Object.keys(ticket).length === 0) return;
     await this.request(`/tickets/${ticketId}.json`, {
