@@ -38,6 +38,16 @@ export type Mode = "draft" | "auto";
 export const ORDER_CONFIRMATION_FIELD_ID = Number(process.env.ORDER_CONFIRMATION_FIELD_ID ?? 24492007664795);
 export const ORDER_CONFIRMATION_FIELD_VALUE = process.env.ORDER_CONFIRMATION_FIELD_VALUE ?? "order_confirmation";
 
+// Zendesk custom field option used by the "newsletter_signup" rule action
+// (see src/pipeline.ts) - the SAME "Reason for Customer Contacting Us"
+// field as order_confirmation above (field ID 24492007664795), just a
+// different option: "Newsletter Sign up". Value confirmed directly against
+// a real ticket (Wine and Canvas #29078, Christopher, 2026-09-20) - the
+// tag Zendesk applies for that option is "newsletter_sign_up" (three
+// words), NOT "newsletter_signup" as the option's display name might
+// suggest, so don't "clean up" this spelling.
+export const NEWSLETTER_SIGNUP_FIELD_VALUE = process.env.NEWSLETTER_SIGNUP_FIELD_VALUE ?? "newsletter_sign_up";
+
 export const env = {
   zendesk: {
     subdomain: required("ZENDESK_SUBDOMAIN"),

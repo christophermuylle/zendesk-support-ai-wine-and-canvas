@@ -43,8 +43,13 @@ class MockZendeskClient implements IZendeskClient {
     console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}):`);
     console.log(`     "${body.replace(/\n/g, "\n     ")}"`);
   }
-  async updateTicket(ticketId: number, opts: { status?: string; addTags?: string[] }): Promise<void> {
-    console.log(`\n  -> would set status=${opts.status ?? "unchanged"}, tags+=${opts.addTags?.join(",") ?? "-"}, no reply (out of scope)`);
+  async updateTicket(
+    ticketId: number,
+    opts: { status?: string; addTags?: string[]; fields?: Array<{ id: number; value: string | null }> }
+  ): Promise<void> {
+    console.log(
+      `\n  -> would set status=${opts.status ?? "unchanged"}, tags+=${opts.addTags?.join(",") ?? "-"}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}, no reply`
+    );
   }
 }
 
@@ -198,6 +203,42 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
       requester: { id: CUSTOMER_ID, name: "Casey Customer", email: "casey@example.com" },
       comments: [makeComment("How much does it cost to book an event?", CUSTOMER_ID)],
       brand: "painting_and_vino",
+    },
+  },
+  {
+    label: 'Newsletter Sign Up - Indianapolis (real ticket #29078 shape: should set Reason for Contact + solve + close, no AI call)',
+    ctx: {
+      ticket: {
+        id: 8,
+        subject: "Wine and Canvas - Indianapolis Newsletter Sign Up",
+        description: "Newsletter Sign Up\n\nEmail: obiadibartho@gmail.com",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Obiadibartho", email: "obiadibartho@gmail.com" },
+      comments: [makeComment("Newsletter Sign Up\n\nEmail: obiadibartho@gmail.com", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: 'Newsletter Sign Up - Austin (different city, proves the rule is not Indianapolis-only)',
+    ctx: {
+      ticket: {
+        id: 9,
+        subject: "Wine and Canvas - Austin Newsletter Sign Up",
+        description: "Newsletter Sign Up\n\nEmail: someone@example.com",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Someone Else", email: "someone@example.com" },
+      comments: [makeComment("Newsletter Sign Up\n\nEmail: someone@example.com", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
     },
   },
 ];

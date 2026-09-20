@@ -31,6 +31,14 @@
 #                         leaves it Open for a human if it's $0/unparseable. See
 #                         src/pipeline.ts's order_confirmation branch.
 #
+#   newsletter_signup  - for "<Brand> - <City> Newsletter Sign Up" tickets
+#                         (any city), also not a real support question: no
+#                         AI call, no reply of any kind. Sets the "Reason
+#                         for Customer Contacting Us" field to Newsletter
+#                         Sign up, then Solves the ticket and immediately
+#                         Closes it. See src/pipeline.ts's newsletter_signup
+#                         branch.
+#
 # force_human_review: true means this rule NEVER auto-sends, regardless of MODE.
 # add_tags: tags to stamp on the ticket when this rule fires (for reporting).
 # drafting_hint: extra instruction passed to the AI when it writes the reply.
@@ -47,6 +55,10 @@
 # Painting and Vino deployment's rules.yaml. Do not add solve/pending/
 # escalate actions outside those two categories without Christopher
 # explicitly asking again.
+#
+# Christopher, 2026-09-20: added newsletter_signup as another exception -
+# purely mechanical (like order_confirmation, no AI call/reply ever). See
+# the newsletter_signup_ticket rule below.
 # ---------------------------------------------------------------------------
 
 rules:
@@ -94,6 +106,19 @@ rules:
     match:
       any_keywords: ["new order"]
     action: order_confirmation
+    force_human_review: false
+
+  # "<Brand> - <City> Newsletter Sign Up" tickets from each city's newsletter
+  # signup form (e.g. https://wineandcanvas.com/indianapolis) - confirmed
+  # against a real ticket (#29078, Christopher, 2026-09-20): subject reads
+  # "Wine and Canvas - Indianapolis Newsletter Sign Up", and the correct
+  # "Reason for Customer Contacting Us" option is "Newsletter Sign up".
+  # Applies to every city, not just Indianapolis ("Every city" - Christopher,
+  # 2026-09-20). Matches on subject text so the city name doesn't matter.
+  - name: newsletter_signup_ticket
+    match:
+      any_keywords: ["newsletter sign up", "newsletter signup"]
+    action: newsletter_signup
     force_human_review: false
 
   - name: refund_or_cancellation_request
