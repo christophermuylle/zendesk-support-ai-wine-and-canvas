@@ -455,8 +455,9 @@ function renderCorporateOrStandard(
     `We come to you — fully mobile, we bring every supply to your location (home, rental, restaurant, you name it). No studio, no hassle.`,
     ``,
     loc.restaurantListUrl
-      ? `Need a space? Here's our partner restaurant list for ${loc.displayName} — most don't charge extra beyond food and beverage costs per person: ${loc.restaurantListUrl}. Take a look and let me know if anything works and I'll check availability.`
+      ? `Need a space? Here's our partner restaurant list for ${loc.displayName} — most don't charge extra beyond food and beverage costs per person. Take a look and let me know if anything works and I'll check availability.`
       : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    loc.restaurantListUrl ? `${restaurantLinkLabel(locationKey, loc)}: ${loc.restaurantListUrl}` : null,
     ``,
     `🎨 What We Bring`,
     `Everything — canvases, easels, aprons, table covers, all of it. You handle food, drinks, and seating (or your venue does). Drinks can absolutely include alcohol — totally your call!`,
@@ -479,7 +480,7 @@ function renderCorporateOrStandard(
     ``,
     `This quote is valid for 30 days.`,
     ``,
-    `📷 See a Party in Action: ${PARTY_IN_ACTION_URL}`,
+    `${PARTY_IN_ACTION_LABEL}: ${PARTY_IN_ACTION_URL}`,
     ``,
     `Ready to lock in your date? Just reply with your preferred date and approximate headcount and I'll check availability right away. Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
     ``,
@@ -490,7 +491,11 @@ function renderCorporateOrStandard(
     `The Wine & Canvas Team`,
   ]);
 
-  const htmlBody = toHtml(plainBody, loc.restaurantListUrl);
+  const links = [
+    ...(loc.restaurantListUrl ? [{ label: restaurantLinkLabel(locationKey, loc), url: loc.restaurantListUrl }] : []),
+    { label: PARTY_IN_ACTION_LABEL, url: PARTY_IN_ACTION_URL },
+  ];
+  const htmlBody = toHtml(plainBody, links);
   return { category, locationKey, plainBody, htmlBody, imageAssets: [] };
 }
 
@@ -514,8 +519,9 @@ function renderFundraiser(
     ``,
     `Venue: We are available to host events at any of your preferred locations, including your home.`,
     loc.restaurantListUrl
-      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}: ${loc.restaurantListUrl}. Most do not charge for use of space but they do expect everyone to order food and drinks during the event.`
+      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}. Most do not charge for use of space but they do expect everyone to order food and drinks during the event.`
       : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    loc.restaurantListUrl ? `${restaurantLinkLabel(locationKey, loc)}: ${loc.restaurantListUrl}` : null,
     ``,
     `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. Serving alcohol at the party is always optional.`,
     ``,
@@ -535,7 +541,7 @@ function renderFundraiser(
     ``,
     `This quote is valid for 30 days.`,
     ``,
-    `📷 See a Party in Action: ${PARTY_IN_ACTION_URL}`,
+    `${PARTY_IN_ACTION_LABEL}: ${PARTY_IN_ACTION_URL}`,
     ``,
     `If you'd like to move forward with the planning process, don't hesitate to reach out and we can get you started! Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
     ``,
@@ -545,7 +551,11 @@ function renderFundraiser(
   ];
 
   const plainBody = joinLinesPlain(bodyLines);
-  const htmlBody = toHtml(joinLines(bodyLines), loc.restaurantListUrl);
+  const links = [
+    ...(loc.restaurantListUrl ? [{ label: restaurantLinkLabel(locationKey, loc), url: loc.restaurantListUrl }] : []),
+    { label: PARTY_IN_ACTION_LABEL, url: PARTY_IN_ACTION_URL },
+  ];
+  const htmlBody = toHtml(joinLines(bodyLines), links);
 
   return {
     category: "fundraiser",
@@ -568,8 +578,9 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     ``,
     `Venue: We are 100% mobile so we do not have a studio space. We are available to host events at any of your preferred locations, including your home.`,
     loc.restaurantListUrl
-      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}: ${loc.restaurantListUrl}. Most don't charge for use of space but they do expect everyone to order food and drinks during the event.`
+      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}. Most don't charge for use of space but they do expect everyone to order food and drinks during the event.`
       : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    loc.restaurantListUrl ? `${restaurantLinkLabel(locationKey, loc)}: ${loc.restaurantListUrl}` : null,
     ``,
     `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. This means we don't provide cookies either.`,
     ``,
@@ -601,7 +612,8 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
   ];
 
   const plainBody = joinLinesPlain(bodyLines);
-  const htmlBody = toHtml(joinLines(bodyLines), loc.restaurantListUrl);
+  const links = loc.restaurantListUrl ? [{ label: restaurantLinkLabel(locationKey, loc), url: loc.restaurantListUrl }] : [];
+  const htmlBody = toHtml(joinLines(bodyLines), links);
   return {
     category: "kids",
     locationKey,
@@ -615,30 +627,35 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
 }
 
 /**
- * Converts a plain-text body into an HTML version with the restaurant/venue
- * link rendered as a real <a href> hyperlink (Christopher: "Make sure you
- * hyperlink instead of using HTML link" - i.e. don't leave raw markup
- * visible in the customer's inbox), plus the fixed "See a Party in Action"
- * link when present. Placeholder markers for embedded images
- * (__EMBED_*__) are left as literal text here and resolved to real <img>
- * tags by embedImages() once each asset has been uploaded and its
- * content_url is known (that requires an API call this pure function can't
- * make - see the private_event_quote branch in pipeline.ts).
+ * A visible "LABEL: URL" line in the plain-text body (see restaurantLink()
+ * and the "See a Party in Action" line below) becomes a real <a href>
+ * hyperlink around just the label in the HTML version - Christopher, when
+ * reviewing the rendered templates: "can you not hyperlink [the raw URL]?
+ * I feel like the URL doesn't look very professional. I usually type the
+ * file name and hyperlink it." So the customer sees "Fort Lauderdale
+ * Restaurant List Link" as clickable blue text, never the raw
+ * drive.google.com URL. The plain-text fallback body keeps "LABEL: URL"
+ * as literal text, since a plain-text email has no other way to carry a
+ * working link.
  */
-function toHtml(plainBody: string, restaurantListUrl: string | null): string {
+function toHtml(plainBody: string, links: Array<{ label: string; url: string }>): string {
   const escaped = escapeHtml(plainBody);
   let html = escaped.replace(/\n/g, "<br>\n");
-  // restaurantListUrl already covers Cadillac's own venue link when that's
-  // the matched location - don't also list CADILLAC_VENUE_LIST separately,
-  // or the same URL gets wrapped in <a> twice (once as the href, once as
-  // the visible text) on the second pass, corrupting the markup.
-  const urlsToLink = [...new Set([restaurantListUrl, PARTY_IN_ACTION_URL].filter((u): u is string => !!u))];
-  for (const url of urlsToLink) {
+  for (const { label, url } of links) {
+    const escapedLabel = escapeHtml(label);
     const escapedUrl = escapeHtml(url);
-    html = html.split(escapedUrl).join(`<a href="${escapedUrl}">${escapedUrl}</a>`);
+    const pattern = `${escapedLabel}: ${escapedUrl}`;
+    html = html.split(pattern).join(`<a href="${escapedUrl}">${escapedLabel}</a>`);
   }
   return `<p>${html}</p>`;
 }
+
+/** "Fort Lauderdale Restaurant List Link" / "Cadillac Venue List Link" - Cadillac's link is a venue list, not a restaurant partner list. */
+function restaurantLinkLabel(locationKey: PrivateEventLocationKey, loc: PrivateEventLocationInfo): string {
+  return locationKey === "cadillac" ? "Cadillac Venue List Link" : `${loc.displayName} Restaurant List Link`;
+}
+
+const PARTY_IN_ACTION_LABEL = "📷 See a Party in Action";
 
 /**
  * Splices <img> tags for each RenderedQuote.imageAssets entry onto the
