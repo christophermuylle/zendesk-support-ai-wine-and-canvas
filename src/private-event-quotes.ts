@@ -13,18 +13,16 @@
 //
 // ****************************************************************************
 // STATUS (2026-09-21): all four templates' real copy, pricing, and
-// restaurant/venue links are now in, below. Two things are still open -
-// see the "OPEN QUESTIONS FOR CHRISTOPHER" comment further down before
-// flipping PRIVATE_EVENT_QUOTES_LIVE to true:
-//   1. Cadillac's pricing group changed mid-build (was "same as Grand
-//      Rapids", the corporate/standard templates now group it with
-//      Indianapolis/Tampa/Fort Myers/Fort Lauderdale instead) - resolved
-//      here using the templates (more recent + confirmed twice), but
-//      flagged since it reverses an earlier explicit confirmation.
-//   2. A few numbers (Cadillac's fundraiser/kids rates, Grand Rapids'
-//      30-49/50+ corporate tiers) were never stated post-Cadillac-split and
-//      are inferred from the closest matching group - marked INFERRED
-//      below.
+// restaurant/venue links are in below. Cadillac's pricing group was
+// briefly unclear mid-build (the corporate/standard template text
+// appeared to group it with Indianapolis/Tampa/Fort Myers/Fort Lauderdale
+// instead of Grand Rapids) but Christopher confirmed his original pricing
+// message is correct: "Cadillac is listed with Grand Rapids from what I
+// sent" - Lansing/Grand Rapids/Cadillac all share one rate. That template
+// text was stale/wrong and is NOT what's used below. Naples also gets the
+// same Pet Portrait +$10 bump as Orlando/Miami, and Bonita Springs shares
+// Naples' pricing (both confirmed 2026-09-21). No open pricing questions
+// remain.
 // ****************************************************************************
 
 import type { TicketContext } from "./types.js";
@@ -172,33 +170,13 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
 // ---------------------------------------------------------------------------
 // Pricing.
 //
-// OPEN QUESTIONS FOR CHRISTOPHER (do not go live until these are resolved):
-//
-// 1. Cadillac's pricing group: earlier in this project Christopher said
-//    "Cadillac gets same pricing as Grand Rapids for all templates." But
-//    the corporate and standard templates he pasted afterward both
-//    explicitly list Cadillac together with Indianapolis/Tampa/Fort
-//    Myers/Fort Lauderdale (Group A) at a DIFFERENT rate than Grand
-//    Rapids (which the same templates list on its own, paired only with
-//    Lansing). Since that grouping showed up twice, independently, in his
-//    actual live template text, this file now follows the templates
-//    (Cadillac = Group A) rather than the earlier statement - but please
-//    confirm that's the intended change and not a copy/paste slip.
-// 2. The fundraiser and kids templates never mention Cadillac specifically
-//    (their pricing sections don't call it out either way). Cadillac's
-//    fundraiser and kids rates below are INFERRED, not stated - see the
-//    comments next to CADILLAC below.
-// 3. Grand Rapids' corporate 30-49/50+ tiers: the corporate template only
-//    gave Grand Rapids' base rate ($43/person, down from the $44 given
-//    earlier). The 30-49 ($40) and 50+ ($35) discount tiers below are
-//    carried over from the earlier pricing message rather than restated -
-//    please confirm those two numbers are still correct for Grand Rapids
-//    now that Cadillac has moved to its own group.
-// 4. Pet Portrait fundraiser pricing: "(For Orlando/Miami add $10 for pet
-//    art)" - Naples is grouped with Orlando/Miami everywhere else in
-//    these templates, but wasn't included in this one $10 bump. Rendered
-//    literally as stated (Naples does NOT get the +$10) - flag if that's
-//    not intentional.
+// All pricing questions from earlier drafts of this file are resolved:
+// Cadillac mirrors Grand Rapids (Christopher: "Cadillac is listed with
+// Grand Rapids from what I sent"), Naples gets the same Pet Portrait +$10
+// bump as Orlando/Miami (Christopher: "Add naples to the Miami group"),
+// and Bonita Springs shares Naples' pricing/link (Christopher: "it should
+// be the same pricing as Naples") - see getLocationInfo(),
+// getPetPortraitPricing(), and resolvePrivateEventLocationKey() below.
 // ---------------------------------------------------------------------------
 
 /** One row of a per-person, group-size-tiered price list (e.g. "8-29 guests -> $44/person"). */
@@ -218,12 +196,13 @@ export interface PrivateEventPricing {
 }
 
 // Christopher, 2026-09-21 ("Here is pricing for all locations that
-// includes discounts for 30+ people") + confirmed again in the literal
-// corporate/standard template text pasted afterward. Three groups:
-//   Group A: Indianapolis / Tampa / Fort Myers / Fort Lauderdale / Cadillac
+// includes discounts for 30+ people", confirmed again when Cadillac's
+// grouping came into question: "Cadillac is listed with Grand Rapids from
+// what I sent"). Three groups:
+//   Group A: Indianapolis / Tampa / Fort Myers / Fort Lauderdale
 //   Group B: Orlando / Naples (incl. Bonita Springs) / Miami - higher tier
-//   Grand Rapids: its own group (Lansing shares it, but Lansing never
-//     reaches this code - excluded upstream)
+//   Grand Rapids/Cadillac: share one rate (Lansing shares it too, but
+//     Lansing never reaches this code - excluded upstream)
 const GROUP_A_CORPORATE_TIERS: PricingTierRow[] = [
   { range: "8-29", pricePerPerson: 44 },
   { range: "30-49", pricePerPerson: 40 },
@@ -244,13 +223,12 @@ const GROUP_B_STANDARD_TIERS: PricingTierRow[] = [
   { range: "30-49", pricePerPerson: 40 },
   { range: "50+", pricePerPerson: 35 },
 ];
-// Grand Rapids only (Cadillac moved to Group A - see OPEN QUESTIONS #1).
-// Corporate base ($43) is from the template text; the 30-49/50+ tiers are
-// carried over from the earlier pricing message (INFERRED - see #3).
+// Grand Rapids and Cadillac share this rate (Christopher, 2026-09-21:
+// "Cadillac is listed with Grand Rapids from what I sent").
 const GRAND_RAPIDS_CORPORATE_TIERS: PricingTierRow[] = [
-  { range: "8-29", pricePerPerson: 43 },
-  { range: "30-49", pricePerPerson: 40 }, // INFERRED, not restated after the Cadillac split
-  { range: "50+", pricePerPerson: 35 }, // INFERRED, not restated after the Cadillac split
+  { range: "8-29", pricePerPerson: 44 },
+  { range: "30-49", pricePerPerson: 40 },
+  { range: "50+", pricePerPerson: 35 },
 ];
 const GRAND_RAPIDS_STANDARD_TIERS: PricingTierRow[] = [
   { range: "8-29", pricePerPerson: 40 },
@@ -260,8 +238,7 @@ const GRAND_RAPIDS_STANDARD_TIERS: PricingTierRow[] = [
 
 // Fundraiser: "we discount the retail rate by $5 and donate the difference
 // to your cause" - retail matches the standard per-person rate, keep =
-// retail - 5. Stated per-group in the fundraiser template; Cadillac isn't
-// mentioned there (INFERRED as Group A's rate - see OPEN QUESTIONS #2).
+// retail - 5.
 const GROUP_A_FUNDRAISER = { retail: 39, keep: 34 };
 const GROUP_B_FUNDRAISER = { retail: 45, keep: 40 };
 const GRAND_RAPIDS_FUNDRAISER = { retail: 40, keep: 35 };
@@ -275,9 +252,16 @@ const KIDS_DEFAULT_PRICE = 29; // Tampa, Fort Myers, Indianapolis, Grand Rapids,
 const KIDS_FORT_LAUDERDALE_PRICE = 27;
 const KIDS_ORLANDO_NAPLES_MIAMI_PRICE = 35;
 
-/** Pet Portraits is a fundraiser-only add-on project with its own per-ticket pricing (see OPEN QUESTIONS #4 for the Naples asymmetry). */
+/**
+ * Pet Portraits is a fundraiser-only add-on project with its own
+ * per-ticket pricing. The fundraiser template's literal text only said
+ * "(For Orlando/Miami add $10 for pet art)", leaving Naples out even
+ * though it's grouped with Orlando/Miami everywhere else - flagged to
+ * Christopher, who confirmed 2026-09-21: "Add naples to the Miami group."
+ * Naples now gets the same +$10 bump as Orlando/Miami.
+ */
 export function getPetPortraitPricing(locationKey: PrivateEventLocationKey): { charge: number; retail: number } {
-  const bump = locationKey === "orlando" || locationKey === "miami" ? 10 : 0;
+  const bump = locationKey === "orlando" || locationKey === "miami" || locationKey === "naples" ? 10 : 0;
   return { charge: 45 + bump, retail: 55 + bump };
 }
 
@@ -347,9 +331,10 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   cadillac: {
     displayName: "Cadillac, MI",
     restaurantListUrl: CADILLAC_VENUE_LIST,
-    // Group A per the corporate/standard templates - see OPEN QUESTIONS #1.
-    // Fundraiser/kids rates are INFERRED (Group A's rate) - see #2.
-    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+    // Mirrors Grand Rapids across every category (Christopher, 2026-09-21:
+    // "Cadillac is listed with Grand Rapids from what I sent") - plus its
+    // own $75 travel fee and dedicated venue-list link.
+    pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
     travelFee: "$75 travel fee",
   },
 };
