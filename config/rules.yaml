@@ -90,6 +90,28 @@ rules:
         - "las vegas / summerlin, nv"
         - "las vegas, nv"
         - "henderson, nv"
+        # Lansing and Kalamazoo added 2026-09-21 (Christopher, private event
+        # rules for this brand: "If it's for the Lansing or Kalamazoo
+        # great[er] city limits you don't answer the emails. Keep them in
+        # Open and bonnie will send them to the local licensee to answer
+        # themselves.") - same "runs its own local support" category as the
+        # cities above, so folded into this existing rule rather than a
+        # private-event-only one; this means it excludes ALL ticket types
+        # from these two cities, not just private event requests, matching
+        # how every other city in this list already works. Flag to
+        # Christopher if he actually meant this scoped to private event
+        # requests only.
+        #
+        # ASSUMPTION - could not confirm the real ticket wording live (lost
+        # the Zendesk browser session while building this) - covering both
+        # the plain "city, state" form and a "greater X" form, same as the
+        # Las Vegas / Rochester entries above. Confirm against a real
+        # Lansing/Kalamazoo ticket and adjust these phrases if the wording
+        # differs, same as the other TODO on this rule.
+        - "lansing, mi"
+        - "greater lansing"
+        - "kalamazoo, mi"
+        - "greater kalamazoo"
     action: no_action
     force_human_review: false
     add_tags: ["out_of_scope_location"]
