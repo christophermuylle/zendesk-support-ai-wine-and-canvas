@@ -208,14 +208,14 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     // Live: upload each embedded photo (see quote.imageAssets), splice the
     // resulting content_urls into the HTML body, and send publicly.
     const uploadTokens: string[] = [];
-    const imageContentUrls: string[] = [];
+    const uploadedImages: Array<{ key: string; contentUrl: string }> = [];
     for (const asset of quote.imageAssets) {
       const data = fs.readFileSync(path.join(process.cwd(), ASSET_DIR, asset.filename));
       const { token, contentUrl } = await deps.zendesk.uploadFile(asset.filename, asset.contentType, data);
       uploadTokens.push(token);
-      imageContentUrls.push(contentUrl);
+      uploadedImages.push({ key: asset.key, contentUrl });
     }
-    const htmlBody = embedImages(quote.htmlBody, imageContentUrls);
+    const htmlBody = embedImages(quote.htmlBody, uploadedImages);
 
     await deps.zendesk.postComment(ticketId, quote.plainBody, {
       isPublic: true,

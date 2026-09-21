@@ -12,19 +12,19 @@
 // 16 and under), and standard (everything else).
 //
 // ****************************************************************************
-// STATUS (2026-09-21): the classification engine, location/pricing
-// resolution (including the Miami/Fort-Lauderdale and Naples/Fort-Myers
-// splits and Cadillac's Grand-Rapids-equivalent pricing), image embedding,
-// and hyperlink rendering below are built and wired into the pipeline.
-// The actual customer-facing TEMPLATE COPY - the exact wording, prices,
-// and restaurant/venue links for each city Christopher pasted earlier in
-// this project - is NOT included below (marked TODO_CHRISTOPHER
-// throughout). That content was in an earlier part of this conversation
-// that aged out of context before this file was written, and guessing at
-// real prices/links for a customer-facing quote would be worse than
-// leaving it blank. Do not flip PRIVATE_EVENT_QUOTES_LIVE to true, and do
-// not treat this as done, until every TODO_CHRISTOPHER block has been
-// replaced with his actual approved copy.
+// STATUS (2026-09-21): all four templates' real copy, pricing, and
+// restaurant/venue links are now in, below. Two things are still open -
+// see the "OPEN QUESTIONS FOR CHRISTOPHER" comment further down before
+// flipping PRIVATE_EVENT_QUOTES_LIVE to true:
+//   1. Cadillac's pricing group changed mid-build (was "same as Grand
+//      Rapids", the corporate/standard templates now group it with
+//      Indianapolis/Tampa/Fort Myers/Fort Lauderdale instead) - resolved
+//      here using the templates (more recent + confirmed twice), but
+//      flagged since it reverses an earlier explicit confirmation.
+//   2. A few numbers (Cadillac's fundraiser/kids rates, Grand Rapids'
+//      30-49/50+ corporate tiers) were never stated post-Cadillac-split and
+//      are inferred from the closest matching group - marked INFERRED
+//      below.
 // ****************************************************************************
 
 import type { TicketContext } from "./types.js";
@@ -106,15 +106,13 @@ export function classifyPrivateEvent(ctx: TicketContext): PrivateEventCategory {
 // (fort-lauderdale), because for the AI knowledge-base system they share a
 // single location page. But for private-event PRICING specifically,
 // Christopher was explicit that Miami and Naples are priced differently
-// from their grouped siblings:
-//   - "Yes, for Miami we charge more then Fort Lauderdale" (Miami groups
-//     with Orlando/Naples pricing instead)
-//   - Naples/Miami share one combined restaurant-list link, separate from
-//     Fort Myers's and Fort Lauderdale's own links.
-// So this resolver takes the slug LocationResolver already matched and
-// further narrows Fort-Lauderdale-slug tickets into "fort-lauderdale" vs.
-// "miami", and Fort-Myers-slug tickets into "fort-myers" vs. "naples",
-// based on which city name is actually in the text.
+// from their grouped siblings ("for Miami we charge more than Fort
+// Lauderdale" - confirmed again by the corporate/standard/fundraiser
+// templates below, which all group Miami with Orlando/Naples). So this
+// resolver takes the slug LocationResolver already matched and further
+// narrows Fort-Lauderdale-slug tickets into "fort-lauderdale" vs. "miami",
+// and Fort-Myers-slug tickets into "fort-myers" vs. "naples", based on
+// which city name is actually in the text.
 //
 // Kalamazoo and Lansing are never reached here - the out_of_scope_location
 // rule in rules.yaml excludes them before a ticket ever gets to
@@ -147,7 +145,15 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
     return mentionsMiami && !mentionsFtLauderdale ? "miami" : "fort-lauderdale";
   }
   if (matchedSlug === "fort-myers") {
-    const mentionsNaples = text.includes("naples");
+    // "bonita springs" added 2026-09-21 - the corporate/standard templates
+    // both list "Orlando, Naples/Bonita Springs, and Miami" as one pricing
+    // group, so Bonita Springs needs to resolve to the "naples" pricing
+    // key too. NOTE: locations.yaml's fort-myers match_keywords doesn't
+    // have "bonita springs" yet, so a ticket that ONLY says "Bonita
+    // Springs" (no "Fort Myers"/"Naples"/"Cape Coral") won't match a
+    // location at all upstream and will never reach this function -
+    // flagged to Christopher, worth adding there too.
+    const mentionsNaples = text.includes("naples") || text.includes("bonita springs");
     const mentionsFtMyers = text.includes("fort myers") || text.includes("ft myers") || text.includes("cape coral");
     return mentionsNaples && !mentionsFtMyers ? "naples" : "fort-myers";
   }
@@ -163,6 +169,38 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Pricing.
+//
+// OPEN QUESTIONS FOR CHRISTOPHER (do not go live until these are resolved):
+//
+// 1. Cadillac's pricing group: earlier in this project Christopher said
+//    "Cadillac gets same pricing as Grand Rapids for all templates." But
+//    the corporate and standard templates he pasted afterward both
+//    explicitly list Cadillac together with Indianapolis/Tampa/Fort
+//    Myers/Fort Lauderdale (Group A) at a DIFFERENT rate than Grand
+//    Rapids (which the same templates list on its own, paired only with
+//    Lansing). Since that grouping showed up twice, independently, in his
+//    actual live template text, this file now follows the templates
+//    (Cadillac = Group A) rather than the earlier statement - but please
+//    confirm that's the intended change and not a copy/paste slip.
+// 2. The fundraiser and kids templates never mention Cadillac specifically
+//    (their pricing sections don't call it out either way). Cadillac's
+//    fundraiser and kids rates below are INFERRED, not stated - see the
+//    comments next to CADILLAC below.
+// 3. Grand Rapids' corporate 30-49/50+ tiers: the corporate template only
+//    gave Grand Rapids' base rate ($43/person, down from the $44 given
+//    earlier). The 30-49 ($40) and 50+ ($35) discount tiers below are
+//    carried over from the earlier pricing message rather than restated -
+//    please confirm those two numbers are still correct for Grand Rapids
+//    now that Cadillac has moved to its own group.
+// 4. Pet Portrait fundraiser pricing: "(For Orlando/Miami add $10 for pet
+//    art)" - Naples is grouped with Orlando/Miami everywhere else in
+//    these templates, but wasn't included in this one $10 bump. Rendered
+//    literally as stated (Naples does NOT get the +$10) - flag if that's
+//    not intentional.
+// ---------------------------------------------------------------------------
+
 /** One row of a per-person, group-size-tiered price list (e.g. "8-29 guests -> $44/person"). */
 export interface PricingTierRow {
   range: string; // "8-29", "30-49", "50+"
@@ -170,36 +208,22 @@ export interface PricingTierRow {
 }
 
 export interface PrivateEventPricing {
-  corporateTiers: PricingTierRow[] | null;
-  standardTiers: PricingTierRow[] | null;
-  // Fundraiser and kids pricing work differently (retail/keep split for
-  // fundraiser, flat rate for kids) and haven't been sent yet.
-  fundraiserRetail: string | null; // TODO_CHRISTOPHER
-  fundraiserKeep: string | null; // TODO_CHRISTOPHER
-  kidsPrice: string | null; // TODO_CHRISTOPHER
+  corporateTiers: PricingTierRow[];
+  standardTiers: PricingTierRow[];
+  /** Per-person retail rate customers/ticket-buyers pay at a fundraiser event; Wine and Canvas keeps fundraiserKeep of it, the rest goes to the cause (the group can raise the retail rate above this to raise more). */
+  fundraiserRetail: number;
+  fundraiserKeep: number;
+  /** Flat per-person rate for the kids/Cookies & Canvas template (no group-size tiers given for kids). */
+  kidsPricePerPerson: number;
 }
 
-export interface PrivateEventLocationInfo {
-  displayName: string;
-  /** Restaurant/venue list link for this city (rendered as a real hyperlink, not raw HTML). */
-  restaurantListUrl: string | null;
-  pricing: PrivateEventPricing;
-  /** Set only for markets with an extra service fee (currently just Cadillac). */
-  travelFee?: string;
-}
-
-// Real per-person discount tiers, Christopher 2026-09-21 ("Here is pricing
-// for all locations that includes discounts for 30+ people"). Three
-// pricing groups, each covering several cities:
-//   Group A: Tampa / Fort Myers / Indianapolis / Ft Lauderdale
-//   Group B: Orlando / Naples / Miami (higher tier - confirms Christopher's
-//     earlier "for Miami we charge more than Fort Lauderdale")
-//   Group C: Lansing / Grand Rapids / Cadillac (Lansing itself never
-//     reaches this code - excluded upstream by out_of_scope_location - but
-//     its rate is recorded here in case that scope ever changes)
-// Kept as separate named constants per group (even where two groups'
-// numbers happen to match, like Group A and Group C corporate) so editing
-// one group's rate later can't accidentally move another group with it.
+// Christopher, 2026-09-21 ("Here is pricing for all locations that
+// includes discounts for 30+ people") + confirmed again in the literal
+// corporate/standard template text pasted afterward. Three groups:
+//   Group A: Indianapolis / Tampa / Fort Myers / Fort Lauderdale / Cadillac
+//   Group B: Orlando / Naples (incl. Bonita Springs) / Miami - higher tier
+//   Grand Rapids: its own group (Lansing shares it, but Lansing never
+//     reaches this code - excluded upstream)
 const GROUP_A_CORPORATE_TIERS: PricingTierRow[] = [
   { range: "8-29", pricePerPerson: 44 },
   { range: "30-49", pricePerPerson: 40 },
@@ -220,84 +244,129 @@ const GROUP_B_STANDARD_TIERS: PricingTierRow[] = [
   { range: "30-49", pricePerPerson: 40 },
   { range: "50+", pricePerPerson: 35 },
 ];
-const GROUP_C_CORPORATE_TIERS: PricingTierRow[] = [
-  { range: "8-29", pricePerPerson: 44 },
-  { range: "30-49", pricePerPerson: 40 },
-  { range: "50+", pricePerPerson: 35 },
+// Grand Rapids only (Cadillac moved to Group A - see OPEN QUESTIONS #1).
+// Corporate base ($43) is from the template text; the 30-49/50+ tiers are
+// carried over from the earlier pricing message (INFERRED - see #3).
+const GRAND_RAPIDS_CORPORATE_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 43 },
+  { range: "30-49", pricePerPerson: 40 }, // INFERRED, not restated after the Cadillac split
+  { range: "50+", pricePerPerson: 35 }, // INFERRED, not restated after the Cadillac split
 ];
-const GROUP_C_STANDARD_TIERS: PricingTierRow[] = [
+const GRAND_RAPIDS_STANDARD_TIERS: PricingTierRow[] = [
   { range: "8-29", pricePerPerson: 40 },
   { range: "30-49", pricePerPerson: 35 },
   { range: "50+", pricePerPerson: 30 },
 ];
 
-// TODO_CHRISTOPHER: fundraiser (retail/keep) and kids pricing haven't been
-// sent yet - corporate/standard tiers above are real. Restaurant/venue
-// list links are still placeholders except Cadillac's (the real one you
-// gave me: https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing).
+// Fundraiser: "we discount the retail rate by $5 and donate the difference
+// to your cause" - retail matches the standard per-person rate, keep =
+// retail - 5. Stated per-group in the fundraiser template; Cadillac isn't
+// mentioned there (INFERRED as Group A's rate - see OPEN QUESTIONS #2).
+const GROUP_A_FUNDRAISER = { retail: 39, keep: 34 };
+const GROUP_B_FUNDRAISER = { retail: 45, keep: 40 };
+const GRAND_RAPIDS_FUNDRAISER = { retail: 40, keep: 35 };
+
+// Kids/Cookies & Canvas: a DIFFERENT grouping than corporate/standard/
+// fundraiser - the kids template calls out Fort Lauderdale on its own
+// (lower than the default rate) rather than grouping it with Indianapolis/
+// Tampa/Fort Myers. Cadillac and Grand Rapids aren't mentioned either way
+// and fall into the unstated default bucket (INFERRED - see #2).
+const KIDS_DEFAULT_PRICE = 29; // Tampa, Fort Myers, Indianapolis, Grand Rapids, Cadillac (INFERRED for the last two)
+const KIDS_FORT_LAUDERDALE_PRICE = 27;
+const KIDS_ORLANDO_NAPLES_MIAMI_PRICE = 35;
+
+/** Pet Portraits is a fundraiser-only add-on project with its own per-ticket pricing (see OPEN QUESTIONS #4 for the Naples asymmetry). */
+export function getPetPortraitPricing(locationKey: PrivateEventLocationKey): { charge: number; retail: number } {
+  const bump = locationKey === "orlando" || locationKey === "miami" ? 10 : 0;
+  return { charge: 45 + bump, retail: 55 + bump };
+}
+
+export interface PrivateEventLocationInfo {
+  displayName: string;
+  /** Restaurant/venue list link for this city (rendered as a real hyperlink, not raw HTML). */
+  restaurantListUrl: string | null;
+  pricing: PrivateEventPricing;
+  /** Set only for markets with an extra service fee (currently just Cadillac). */
+  travelFee?: string;
+}
+
+// Real links, Christopher 2026-09-21 (pasted directly in the corporate/
+// standard/fundraiser template text). Naples and Miami share one combined
+// link. Cadillac's is its own dedicated venue list (given earlier,
+// separate from the "restaurant partner" lists below).
+const RESTAURANT_LIST_INDIANAPOLIS = "https://drive.google.com/file/d/1bHVyXPZh8RjHGdYFC4Ag0cgts_neh6bq/view?usp=sharing";
+const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-/view?usp=sharing";
+const RESTAURANT_LIST_ORLANDO = "https://drive.google.com/file/d/1zCNFqOIM1xmzI3f5c_3aRcjgsg9Cxywt/view?usp=sharing";
+const RESTAURANT_LIST_FORT_LAUDERDALE = "https://drive.google.com/file/d/1bY8pEwUCLddKcq2mpAtwYNFbea2J4mWJ/view?usp=sharing";
+const RESTAURANT_LIST_FORT_MYERS = "https://drive.google.com/file/d/12OquEzEeWsrrioNKCxpxE517ZhsMlCl1/view?usp=sharing";
+const RESTAURANT_LIST_GRAND_RAPIDS = "https://drive.google.com/file/d/1_tpH4iq8jeYF07RXhH-FjC7BhPl5SOtZ/view?usp=sharing";
+const RESTAURANT_LIST_NAPLES_MIAMI = "https://drive.google.com/file/d/1o84eo8n8kaQHyf2yzH7Zkec3cSrwf3jp/view?usp=sharing";
+const CADILLAC_VENUE_LIST = "https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing";
+
 export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEventLocationInfo> = {
   "fort-myers": {
     displayName: "Fort Myers / Cape Coral, FL",
-    restaurantListUrl: null,
-    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_FORT_MYERS,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   naples: {
     displayName: "Naples, FL",
-    restaurantListUrl: null, // shares a restaurant link with Miami per Christopher
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_NAPLES_MIAMI,
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
   },
   tampa: {
     displayName: "Tampa / St. Pete / Clearwater, FL",
-    restaurantListUrl: null,
-    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_TAMPA,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   orlando: {
     displayName: "Orlando, FL",
-    restaurantListUrl: null,
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_ORLANDO,
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
   },
   "fort-lauderdale": {
     displayName: "Fort Lauderdale, FL",
-    restaurantListUrl: null,
-    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_FORT_LAUDERDALE,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_FORT_LAUDERDALE_PRICE },
   },
   miami: {
     displayName: "Miami, FL",
-    restaurantListUrl: null, // prices like Orlando/Naples, NOT Fort Lauderdale; shares restaurant link with Naples
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_NAPLES_MIAMI, // shares the combined Naples/Miami link
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
   },
   indianapolis: {
     displayName: "Indianapolis, IN",
-    restaurantListUrl: null,
-    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_INDIANAPOLIS,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   "grand-rapids": {
     displayName: "Grand Rapids, MI",
-    restaurantListUrl: null,
-    pricing: { corporateTiers: GROUP_C_CORPORATE_TIERS, standardTiers: GROUP_C_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
+    pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   cadillac: {
     displayName: "Cadillac, MI",
-    restaurantListUrl: "https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing",
-    // Christopher, 2026-09-21: "We don't have a current licensee in
-    // Cadillac. We can service it but it would be a $75 travel fee and
-    // same rates as Grand Rapids." / "Yes, Cadillac gets same pricing as
-    // Grand Rapids for all templates." - pricing resolved at lookup time
-    // in getLocationInfo() below (copies grand-rapids' pricing), not
-    // duplicated here so the two markets can't drift out of sync. Also
-    // matches the Group C rate Christopher sent directly.
-    pricing: { corporateTiers: GROUP_C_CORPORATE_TIERS, standardTiers: GROUP_C_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+    restaurantListUrl: CADILLAC_VENUE_LIST,
+    // Group A per the corporate/standard templates - see OPEN QUESTIONS #1.
+    // Fundraiser/kids rates are INFERRED (Group A's rate) - see #2.
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
     travelFee: "$75 travel fee",
   },
 };
 
-/** Resolves a location key to its full pricing/link info, applying Cadillac's "same as Grand Rapids" rule. */
+function GROUP_A_FUNDRAISER_FIELDS() {
+  return { fundraiserRetail: GROUP_A_FUNDRAISER.retail, fundraiserKeep: GROUP_A_FUNDRAISER.keep };
+}
+function GROUP_B_FUNDRAISER_FIELDS() {
+  return { fundraiserRetail: GROUP_B_FUNDRAISER.retail, fundraiserKeep: GROUP_B_FUNDRAISER.keep };
+}
+function GRAND_RAPIDS_FUNDRAISER_FIELDS() {
+  return { fundraiserRetail: GRAND_RAPIDS_FUNDRAISER.retail, fundraiserKeep: GRAND_RAPIDS_FUNDRAISER.keep };
+}
+
+/** Resolves a location key to its full pricing/link info. */
 export function getLocationInfo(key: PrivateEventLocationKey): PrivateEventLocationInfo {
-  const info = PRIVATE_EVENT_LOCATIONS[key];
-  if (key === "cadillac") {
-    return { ...info, pricing: PRIVATE_EVENT_LOCATIONS["grand-rapids"].pricing };
-  }
-  return info;
+  return PRIVATE_EVENT_LOCATIONS[key];
 }
 
 // ---------------------------------------------------------------------------
@@ -318,6 +387,10 @@ export function getFirstName(ctx: TicketContext): string {
 // real fundraiser bookings.
 export const FUNDRAISER_DONATION_PREFIX = `Thanks so much for thinking of us! Unfortunately we're not able to offer free gift certificate donations for events. We'd love to help in a different way though — hosting a fundraising event of your own is something we do often, and it's a great way to raise money for your cause. Here's how that works:`;
 
+// Christopher, 2026-09-21 (corporate/standard/fundraiser templates all
+// include this link).
+const PARTY_IN_ACTION_URL = "https://wineandcanvas.com/paint-sip-private-events/";
+
 export interface RenderedQuote {
   category: PrivateEventCategory;
   locationKey: PrivateEventLocationKey;
@@ -335,15 +408,19 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** Renders "$75 travel fee applies for this location." or "" if the location has none. */
-function travelFeeLine(loc: PrivateEventLocationInfo): string {
-  return loc.travelFee ? `Please note: ${loc.travelFee} applies for this location.` : "";
+/** "Please note: $75 travel fee applies for this location." or null if the location has none - null (not "") so the join-filter below can drop it cleanly without eating intentional blank spacer lines. */
+function travelFeeLine(loc: PrivateEventLocationInfo): string | null {
+  return loc.travelFee ? `Please note: ${loc.travelFee} applies for this location.` : null;
 }
 
-/** Renders a group-size-tiered per-person price list, e.g. "8-29 guests: $44/person\n30-49 guests: $40/person\n50+ guests: $35/person". */
-function formatTiers(tiers: PricingTierRow[] | null, label: string): string {
-  if (!tiers) return `[TODO_CHRISTOPHER: ${label} pricing not set yet]`;
-  return tiers.map((t) => `  ${t.range} guests: $${t.pricePerPerson}/person`).join("\n");
+/** Joins template lines, dropping only null/undefined entries (conditional lines) - keeps "" entries, which are intentional blank-line paragraph breaks. */
+function joinLines(lines: Array<string | null | undefined>): string {
+  return lines.filter((l): l is string => l !== null && l !== undefined).join("\n");
+}
+
+/** Same as joinLines, but also drops __EMBED_*__ image-placeholder lines entirely - used for the plain-text body, which can't show an image anyway. The HTML body keeps the markers (via joinLines) so embedImages() can swap them for real <img> tags once uploaded. */
+function joinLinesPlain(lines: Array<string | null | undefined>): string {
+  return lines.filter((l): l is string => l !== null && l !== undefined && !l.startsWith("__EMBED_")).join("\n");
 }
 
 export function renderPrivateEventQuote(
@@ -356,68 +433,80 @@ export function renderPrivateEventQuote(
 
   switch (category) {
     case "corporate":
-      return renderCorporate(loc, locationKey, firstName);
+      return renderCorporateOrStandard(loc, locationKey, firstName, "corporate");
     case "fundraiser":
       return renderFundraiser(loc, locationKey, firstName, mentionsGiftDonation(ctx));
     case "kids":
       return renderKids(loc, locationKey, firstName);
     case "standard":
     default:
-      return renderStandard(loc, locationKey, firstName);
+      return renderCorporateOrStandard(loc, locationKey, firstName, "standard");
   }
 }
 
-// TODO_CHRISTOPHER: every template body below is placeholder copy standing
-// in for your real corporate/standard/fundraiser/kids templates (with the
-// personalized-greeting, 30-day-validity, urgency-closer, "See a Party in
-// Action" link, and embedded-photo revisions you approved). Please resend
-// the four templates verbatim and I'll drop your exact wording in here in
-// place of these placeholders - this scaffolding (classification, per-city
-// pricing/link filtering, image embedding, hyperlink rendering) is ready
-// for it.
+// Corporate and standard are word-for-word identical in Christopher's
+// pasted templates - only the pricing tiers differ - so one function
+// renders both. The "Groups of 30+ get a discount — ask us!" line from his
+// literal template is replaced with the actual 30-49/50+ tier numbers
+// below (we have the real numbers, no reason to make the customer ask) -
+// flag to Christopher if he'd rather keep the literal "ask us" instead.
+function renderCorporateOrStandard(
+  loc: PrivateEventLocationInfo,
+  locationKey: PrivateEventLocationKey,
+  firstName: string,
+  category: "corporate" | "standard"
+): RenderedQuote {
+  const tiers = category === "corporate" ? loc.pricing.corporateTiers : loc.pricing.standardTiers;
+  const customFee = 75;
 
-function renderCorporate(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string): RenderedQuote {
-  const plainBody = [
+  const plainBody = joinLines([
     `Hi ${firstName},`,
     ``,
-    `Thanks for thinking of Wine and Canvas for your corporate/team event in ${loc.displayName}! [TODO_CHRISTOPHER: real corporate template body]`,
+    `What a fun occasion to plan for — you're going to give your group something they'll actually talk about for weeks! 🎨`,
     ``,
-    `Pricing for ${loc.displayName} (per person, based on group size):`,
-    formatTiers(loc.pricing.corporateTiers, "corporate"),
-    loc.restaurantListUrl ? `Restaurant/venue list: ${loc.restaurantListUrl}` : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    `Here's everything you need to know to get started:`,
+    ``,
+    `🏠 Venue`,
+    `We come to you — fully mobile, we bring every supply to your location (home, rental, restaurant, you name it). No studio, no hassle.`,
+    ``,
+    loc.restaurantListUrl
+      ? `Need a space? Here's our partner restaurant list for ${loc.displayName} — most don't charge extra beyond food and beverage costs per person: ${loc.restaurantListUrl}. Take a look and let me know if anything works and I'll check availability.`
+      : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    ``,
+    `🎨 What We Bring`,
+    `Everything — canvases, easels, aprons, table covers, all of it. You handle food, drinks, and seating (or your venue does). Drinks can absolutely include alcohol — totally your call!`,
+    ``,
+    `Standard event: 3 hours, 16×20 canvas, step-by-step guided painting. Need to fit a tighter timeline? We can do 2 hours on an 11×14 canvas.`,
+    ``,
+    `Want something different? We also offer other projects like glass painting, pet art, and more — just ask and we'll send over a project pricing sheet!`,
+    ``,
+    `1,000+ painting designs to choose from (we send the link once your deposit is in). Want something custom and unique to your event? We can do that for a $${customFee} flat fee.`,
+    ``,
+    `💲 Pricing for ${loc.displayName}`,
+    `Minimum group size: 8 guests`,
+    `Price per person: ${tiers.map((t) => `$${t.pricePerPerson}/person (${t.range} guests)`).join(", ")}`,
+    `Tighter budget? Smaller canvas options are available at a lower per-person rate.`,
     travelFeeLine(loc),
+    `Travel fees may apply outside the greater city limits.`,
+    ``,
+    `📋 To Book`,
+    `A deposit locks in your date — it covers 2 seats or 20% of your expected headcount (whichever is higher). The balance is due the day before your event. The deposit is non-refundable but transferable for up to one year if your plans change.`,
     ``,
     `This quote is valid for 30 days.`,
     ``,
-    `Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    `📷 See a Party in Action: ${PARTY_IN_ACTION_URL}`,
+    ``,
+    `Ready to lock in your date? Just reply with your preferred date and approximate headcount and I'll check availability right away. Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
+    ``,
+    `Cheers,`,
+    ``,
+    `Bonnie — Private Event Coordinator`,
+    ``,
+    `The Wine & Canvas Team`,
+  ]);
 
   const htmlBody = toHtml(plainBody, loc.restaurantListUrl);
-  return { category: "corporate", locationKey, plainBody, htmlBody, imageAssets: [] };
-}
-
-function renderStandard(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string): RenderedQuote {
-  const plainBody = [
-    `Hi ${firstName},`,
-    ``,
-    `Thanks for reaching out about a private event with Wine and Canvas in ${loc.displayName}! [TODO_CHRISTOPHER: real standard template body]`,
-    ``,
-    `Pricing for ${loc.displayName} (per person, based on group size):`,
-    formatTiers(loc.pricing.standardTiers, "standard"),
-    loc.restaurantListUrl ? `Restaurant/venue list: ${loc.restaurantListUrl}` : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
-    travelFeeLine(loc),
-    ``,
-    `This quote is valid for 30 days.`,
-    ``,
-    `Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const htmlBody = toHtml(plainBody, loc.restaurantListUrl);
-  return { category: "standard", locationKey, plainBody, htmlBody, imageAssets: [] };
+  return { category, locationKey, plainBody, htmlBody, imageAssets: [] };
 }
 
 function renderFundraiser(
@@ -426,27 +515,52 @@ function renderFundraiser(
   firstName: string,
   mentionsDonation: boolean
 ): RenderedQuote {
-  const retail = loc.pricing.fundraiserRetail ?? "[TODO_CHRISTOPHER: fundraiser retail price for " + loc.displayName + "]";
-  const keep = loc.pricing.fundraiserKeep ?? "[TODO_CHRISTOPHER: fundraiser keep amount for " + loc.displayName + "]";
+  const { fundraiserRetail: retail, fundraiserKeep: keep } = loc.pricing;
+  const petPricing = getPetPortraitPricing(locationKey);
 
-  const bodyLines = [
+  const prefix: Array<string | null> = mentionsDonation ? [FUNDRAISER_DONATION_PREFIX, ``] : [];
+  const bodyLines: Array<string | null> = [
+    ...prefix,
     `Hi ${firstName},`,
     ``,
-    `Thanks for thinking of Wine and Canvas for your fundraiser in ${loc.displayName}! [TODO_CHRISTOPHER: real fundraiser template body, incl. Pet Portraits paragraph]`,
+    `Thank you for reaching out about our Wine & Canvas private events. We'd absolutely love to help you plan an exciting paint party.`,
     ``,
-    `Fundraiser pricing for ${loc.displayName}: retail ${retail}, your group keeps ${keep}`,
-    loc.restaurantListUrl ? `Restaurant/venue list: ${loc.restaurantListUrl}` : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    `Here is some additional info about the process and pricing to help you make the best choice.`,
+    ``,
+    `Venue: We are available to host events at any of your preferred locations, including your home.`,
+    loc.restaurantListUrl
+      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}: ${loc.restaurantListUrl}. Most do not charge for use of space but they do expect everyone to order food and drinks during the event.`
+      : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    ``,
+    `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. Serving alcohol at the party is always optional.`,
+    ``,
+    `Painting: We can do canvas or glass painting for the quoted price. Our portfolio has 1,000's of images available. We will send a link once you are ready to book. If you don't see a design you like there is an extra $75 flat fee for custom paintings.`,
+    ``,
+    `Pricing: The group minimum is currently 12 people to host a fundraising event. For fundraisers, we discount the retail rate by $5 and donate the difference to your cause — you can increase the retail rate to raise the donation amount if you like.`,
+    ``,
+    `Standard rate for ${loc.displayName} (Step-by-step Canvas, 16×20, 3-hour event): $${retail} per person, so your group keeps $${keep} per ticket.`,
+    `Options to do a 2-hour event on 11×14 will lower the cost — just ask!`,
     travelFeeLine(loc),
+    `Travel fees may apply if outside the greater city limits.`,
     ``,
-    `📷 See a Party in Action: [TODO_CHRISTOPHER: link]`,
+    `🐾 Pet Portraits: We also do fundraising events with our pet portrait project — a great fit for animal rescues and shelters! Since this is more work-intensive for our artists, we charge $${petPricing.charge} per ticket sold; suggested retail is $${petPricing.retail} (so your group keeps $${petPricing.retail - petPricing.charge} per ticket by default, more if you raise the retail price).`,
+    `__EMBED_FUNDRAISER_PET_PORTRAIT__`,
+    ``,
+    `Timing: We book events for 3 hours but can do 2 if you have time restrictions (this doesn't include setup/cleanup - a shorter event may need a smaller canvas or a more simplified image). Pet Portraits is always a 3-hour event.`,
     ``,
     `This quote is valid for 30 days.`,
     ``,
-    `Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
-  ].filter(Boolean);
+    `📷 See a Party in Action: ${PARTY_IN_ACTION_URL}`,
+    ``,
+    `If you'd like to move forward with the planning process, don't hesitate to reach out and we can get you started! Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
+    ``,
+    `Cheers,`,
+    `Bonnie`,
+    `The Wine & Canvas Team`,
+  ];
 
-  const plainBody = (mentionsDonation ? [FUNDRAISER_DONATION_PREFIX, ``] : []).concat(bodyLines).join("\n");
-  const htmlBody = toHtml(plainBody, loc.restaurantListUrl);
+  const plainBody = joinLinesPlain(bodyLines);
+  const htmlBody = toHtml(joinLines(bodyLines), loc.restaurantListUrl);
 
   return {
     category: "fundraiser",
@@ -458,24 +572,51 @@ function renderFundraiser(
 }
 
 function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string): RenderedQuote {
-  const price = loc.pricing.kidsPrice ?? "[TODO_CHRISTOPHER: kids/Cookies & Canvas price for " + loc.displayName + "]";
-  const plainBody = [
+  const price = loc.pricing.kidsPricePerPerson;
+
+  const bodyLines: Array<string | null> = [
     `Hi ${firstName},`,
     ``,
-    `Thanks for thinking of Wine and Canvas's Cookies & Canvas for your event in ${loc.displayName}! [TODO_CHRISTOPHER: real kids template body]`,
+    `Thank you for reaching out about our Cookies & Canvas private events! We'd absolutely love to help you plan an exciting paint party. 🎉`,
     ``,
-    `Pricing for ${loc.displayName}: ${price}`,
-    loc.restaurantListUrl ? `Restaurant/venue list: ${loc.restaurantListUrl}` : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    `Here is some additional info about the process and pricing to help you make the best choice.`,
+    ``,
+    `Venue: We are 100% mobile so we do not have a studio space. We are available to host events at any of your preferred locations, including your home.`,
+    loc.restaurantListUrl
+      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}: ${loc.restaurantListUrl}. They do not charge for use of space but they do expect everyone to order food and drinks during the event.`
+      : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+    ``,
+    `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. This means we don't provide cookies either.`,
+    ``,
+    `Painting: We can do canvas for the quoted price. Our portfolio has 100's of images available. We will send a link once the deposit is paid. If you don't see a design you like there is an extra $50 flat fee for custom paintings.`,
+    ``,
+    `Below is just one of the examples from our portfolio, a colorful "Cutie Unicorn" 🦄`,
+    `__EMBED_KIDS_UNICORN__`,
+    ``,
+    `Pricing for ${loc.displayName}:`,
+    `The group minimum is currently 10 people to host an event and the rate is $${price} per person.`,
+    `Outside your budget? We also offer an 8x10 size canvas for a one hour painting - ask for pricing!`,
+    `Discounts are provided for groups of 30+ people.`,
     travelFeeLine(loc),
+    `Travel fees may apply if outside the greater city limits.`,
+    `We require a deposit that also covers 2 seats or 20% of your expected headcount, whichever is higher, to book your party. The rest is due the day before. The deposit is non-refundable but transferable for up to one year.`,
+    ``,
+    `Timing: We book events for 1.5-2 hours. This doesn't include setup/cleanup. The canvas size is 11x14 or 12x12 upon request.`,
     ``,
     `This quote is valid for 30 days.`,
     ``,
-    `Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    `If you'd like to move forward with the planning process, don't hesitate to reach out and we can get you started! Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
+    ``,
+    `Here's a peek at a past Cookies & Canvas party in action:`,
+    `__EMBED_KIDS_FAMILY__`,
+    ``,
+    `Cheers,`,
+    `Bonnie`,
+    `The Wine & Canvas Team`,
+  ];
 
-  const htmlBody = toHtml(plainBody, loc.restaurantListUrl);
+  const plainBody = joinLinesPlain(bodyLines);
+  const htmlBody = toHtml(joinLines(bodyLines), loc.restaurantListUrl);
   return {
     category: "kids",
     locationKey,
@@ -492,27 +633,43 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
  * Converts a plain-text body into an HTML version with the restaurant/venue
  * link rendered as a real <a href> hyperlink (Christopher: "Make sure you
  * hyperlink instead of using HTML link" - i.e. don't leave raw markup
- * visible in the customer's inbox). <img> tags for embedded photos are
- * spliced in separately by the pipeline once the image has been uploaded
- * and its content_url is known (see the private_event_quote branch in
- * pipeline.ts), since that requires an API call this pure function can't
- * make.
+ * visible in the customer's inbox), plus the fixed "See a Party in Action"
+ * link when present. Placeholder markers for embedded images
+ * (__EMBED_*__) are left as literal text here and resolved to real <img>
+ * tags by embedImages() once each asset has been uploaded and its
+ * content_url is known (that requires an API call this pure function can't
+ * make - see the private_event_quote branch in pipeline.ts).
  */
 function toHtml(plainBody: string, restaurantListUrl: string | null): string {
   const escaped = escapeHtml(plainBody);
   let html = escaped.replace(/\n/g, "<br>\n");
-  if (restaurantListUrl) {
-    const escapedUrl = escapeHtml(restaurantListUrl);
-    html = html.replace(escapedUrl, `<a href="${escapedUrl}">${escapedUrl}</a>`);
+  // restaurantListUrl already covers Cadillac's own venue link when that's
+  // the matched location - don't also list CADILLAC_VENUE_LIST separately,
+  // or the same URL gets wrapped in <a> twice (once as the href, once as
+  // the visible text) on the second pass, corrupting the markup.
+  const urlsToLink = [...new Set([restaurantListUrl, PARTY_IN_ACTION_URL].filter((u): u is string => !!u))];
+  for (const url of urlsToLink) {
+    const escapedUrl = escapeHtml(url);
+    html = html.split(escapedUrl).join(`<a href="${escapedUrl}">${escapedUrl}</a>`);
   }
   return `<p>${html}</p>`;
 }
 
-/** Splices <img> tags for the given uploaded content URLs onto the end of an htmlBody. Called from pipeline.ts after uploading each RenderedQuote.imageAssets entry. */
-export function embedImages(htmlBody: string, imageContentUrls: string[]): string {
-  if (!imageContentUrls.length) return htmlBody;
-  const imgs = imageContentUrls.map((url) => `<img src="${escapeHtml(url)}" alt="">`).join("\n");
-  return `${htmlBody}\n${imgs}`;
+/**
+ * Splices <img> tags for each RenderedQuote.imageAssets entry onto the
+ * htmlBody, replacing that image's __EMBED_<KEY>__ placeholder (uppercase,
+ * underscored asset key) if one is present, or appending at the end
+ * otherwise. Called from pipeline.ts after uploading each asset and
+ * getting back its content_url.
+ */
+export function embedImages(htmlBody: string, images: Array<{ key: string; contentUrl: string }>): string {
+  let html = htmlBody;
+  for (const img of images) {
+    const marker = `__EMBED_${img.key.toUpperCase().replace(/-/g, "_")}__`;
+    const tag = `<img src="${escapeHtml(img.contentUrl)}" alt="">`;
+    html = html.includes(marker) ? html.replace(marker, tag) : `${html}\n${tag}`;
+  }
+  return html;
 }
 
 export { ASSET_DIR };

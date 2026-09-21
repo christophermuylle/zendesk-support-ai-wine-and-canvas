@@ -36,7 +36,11 @@ locations:
   - slug: fort-myers
     display_name: "Fort Myers / Cape Coral / Naples, FL"
     file: fort-myers.md
-    match_keywords: ["fort myers", "ft myers", "cape coral", "naples"]
+    # "bonita springs" added 2026-09-21 - the private-event corporate/
+    # standard templates group "Naples/Bonita Springs" together for
+    # pricing (see src/private-event-quotes.ts), so a ticket that only
+    # says "Bonita Springs" needs to resolve to this location too.
+    match_keywords: ["fort myers", "ft myers", "cape coral", "naples", "bonita springs"]
 
   - slug: tampa
     display_name: "Tampa / St. Pete / Clearwater, FL"
