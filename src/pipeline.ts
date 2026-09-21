@@ -2,14 +2,26 @@
 // Shared by the live webhook server (src/index.ts) and the local mock test
 // (scripts/test-local.ts) so both exercise identical logic.
 
+import fs from "node:fs";
+import path from "node:path";
 import type { IAiDrafter } from "./ai.js";
 import type { RulesEngine } from "./rules.js";
 import type { LocationResolver } from "./locations.js";
 import type { IZendeskClient, ZendeskStatus } from "./zendesk.js";
 import type { Mode } from "./config.js";
-import { ORDER_CONFIRMATION_FIELD_ID, ORDER_CONFIRMATION_FIELD_VALUE, NEWSLETTER_SIGNUP_FIELD_VALUE } from "./config.js";
+import { ORDER_CONFIRMATION_FIELD_ID, ORDER_CONFIRMATION_FIELD_VALUE, NEWSLETTER_SIGNUP_FIELD_VALUE, PRIVATE_EVENT_QUOTES_LIVE } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
 import { extractOrderTotal } from "./util.js";
+import {
+  classifyPrivateEvent,
+  resolvePrivateEventLocationKey,
+  renderPrivateEventQuote,
+  embedImages,
+  ASSET_DIR,
+  type RenderedQuote,
+  type PrivateEventCategory,
+  type PrivateEventLocationKey,
+} from "./private-event-quotes.js";
 
 export interface PipelineResult {
   ticketId: number;
@@ -27,6 +39,7 @@ export interface PipelineResult {
     | "order_confirmation_solved"
     | "order_confirmation_left_open"
     | "newsletter_signup_solved_and_closed"
+    | "private_event_needs_location"
     | "no_op";
   mode: Mode;
 }
@@ -140,6 +153,80 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     };
   }
 
+  // "private_event_quote" - a private-event inquiry (event_booking_question
+  // rule) gets a mechanical, keyword-classified literal template instead of
+  // an AI draft - see src/private-event-quotes.ts. No AI call. Christopher,
+  // 2026-09-21: "You classify it as keywords in the inquiry form." /
+  // "Only show pricing for the location they are asking for and take out
+  // the rest" - so if we can't tell which city the inquiry is about, we
+  // do NOT guess or show every city's pricing; we hold it for a human to
+  // ask instead.
+  //
+  // Stays held for human review (never auto-sent), regardless of the
+  // global MODE, until PRIVATE_EVENT_QUOTES_LIVE=true is explicitly set -
+  // Christopher's pacing instruction: "Until we load all templates, keep
+  // it to draft mode. Once I have everything sent to you, I will let you
+  // know to go live."
+  if (ruleDecision.action === "private_event_quote") {
+    const location = deps.locations.resolve(ctx);
+    const locationKey = location ? resolvePrivateEventLocationKey(ctx, location.slug) : null;
+
+    if (!location || !locationKey) {
+      const note = [
+        `[PRIVATE EVENT QUOTE - needs human]`,
+        `Matched rule: ${ruleDecision.matchedRule}`,
+        ``,
+        `Could not determine which city this private-event inquiry is for` +
+          (location ? ` (matched "${location.displayName}", but that location isn't in the private-event pricing table yet)` : "") +
+          `, so no quote was generated. A human needs to confirm the location before sending pricing.`,
+      ].join("\n");
+      await deps.zendesk.postComment(ticketId, note, {
+        isPublic: false,
+        addTags: [...(ruleDecision.addTags ?? []), "private_event_needs_location"],
+      });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: location?.displayName ?? null,
+        finalAction: "private_event_needs_location",
+        mode: deps.mode,
+      };
+    }
+
+    const category: PrivateEventCategory = classifyPrivateEvent(ctx);
+    const quote: RenderedQuote = renderPrivateEventQuote(ctx, category, locationKey);
+
+    if (!PRIVATE_EVENT_QUOTES_LIVE) {
+      const note = formatPrivateEventInternalNote(ruleDecision, category, location.displayName, quote);
+      await deps.zendesk.postComment(ticketId, note, {
+        isPublic: false,
+        addTags: [...(ruleDecision.addTags ?? []), "ai_draft_pending_review", `private_event_${category}`],
+      });
+      return { ticketId, ruleDecision, matchedLocation: location.displayName, finalAction: "posted_internal_note", mode: deps.mode };
+    }
+
+    // Live: upload each embedded photo (see quote.imageAssets), splice the
+    // resulting content_urls into the HTML body, and send publicly.
+    const uploadTokens: string[] = [];
+    const imageContentUrls: string[] = [];
+    for (const asset of quote.imageAssets) {
+      const data = fs.readFileSync(path.join(process.cwd(), ASSET_DIR, asset.filename));
+      const { token, contentUrl } = await deps.zendesk.uploadFile(asset.filename, asset.contentType, data);
+      uploadTokens.push(token);
+      imageContentUrls.push(contentUrl);
+    }
+    const htmlBody = embedImages(quote.htmlBody, imageContentUrls);
+
+    await deps.zendesk.postComment(ticketId, quote.plainBody, {
+      isPublic: true,
+      status: "pending", // waiting on the customer to confirm a date, not "solved"
+      htmlBody,
+      uploadTokens,
+      addTags: [...(ruleDecision.addTags ?? []), `private_event_${category}`],
+    });
+    return { ticketId, ruleDecision, matchedLocation: location.displayName, finalAction: "posted_public_reply", mode: deps.mode };
+  }
+
   const { text: knowledgeBase, locationDisplayName } = buildKnowledgeBase(deps, ctx);
   const draft = await deps.ai.draftReply(ctx, knowledgeBase, ruleDecision);
 
@@ -178,4 +265,25 @@ function formatInternalNote(rule: RuleDecision, draft: DraftResult): string {
     ``,
     `Reasoning: ${draft.reasoning}`,
   ].join("\n");
+}
+
+function formatPrivateEventInternalNote(
+  rule: RuleDecision,
+  category: PrivateEventCategory,
+  locationDisplayName: string,
+  quote: RenderedQuote
+): string {
+  return [
+    `[PRIVATE EVENT QUOTE - awaiting human review]`,
+    `Matched rule: ${rule.matchedRule} | Category: ${category} | Location: ${locationDisplayName}`,
+    `PRIVATE_EVENT_QUOTES_LIVE is off, so this will never auto-send - a human must review and send it manually.`,
+    ``,
+    `Quote that would be sent:`,
+    quote.plainBody,
+    quote.imageAssets.length
+      ? `\n(Images that would be attached: ${quote.imageAssets.map((a) => a.filename).join(", ")})`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

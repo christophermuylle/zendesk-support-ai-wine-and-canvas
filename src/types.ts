@@ -35,7 +35,14 @@ export interface TicketContext {
   brand: string;
 }
 
-export type ActionType = "solve" | "pending" | "escalate" | "no_action" | "order_confirmation" | "newsletter_signup";
+export type ActionType =
+  | "solve"
+  | "pending"
+  | "escalate"
+  | "no_action"
+  | "order_confirmation"
+  | "newsletter_signup"
+  | "private_event_quote";
 
 /** Outcome of running the rules engine against a ticket. */
 export interface RuleDecision {

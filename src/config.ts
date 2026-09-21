@@ -48,6 +48,19 @@ export const ORDER_CONFIRMATION_FIELD_VALUE = process.env.ORDER_CONFIRMATION_FIE
 // suggest, so don't "clean up" this spelling.
 export const NEWSLETTER_SIGNUP_FIELD_VALUE = process.env.NEWSLETTER_SIGNUP_FIELD_VALUE ?? "newsletter_sign_up";
 
+// Independent go-live lever for the private-event quote templates
+// (corporate/standard/fundraiser/kids - see src/private-event-quotes.ts and
+// the "private_event_quote" branch in src/pipeline.ts), separate from the
+// global MODE env var. Christopher, 2026-09-21: "Until we load all
+// templates, keep it to draft mode. Once I have everything sent to you, I
+// will let you know to go live." Defaults to false (draft/internal-note
+// only) no matter what MODE is set to - this must be explicitly flipped to
+// "true" in Railway once Christopher gives the go-ahead, so a later
+// unrelated MODE=auto change for the rest of the app can never
+// accidentally start auto-sending these before he's reviewed the final
+// copy.
+export const PRIVATE_EVENT_QUOTES_LIVE = process.env.PRIVATE_EVENT_QUOTES_LIVE === "true";
+
 export const env = {
   zendesk: {
     subdomain: required("ZENDESK_SUBDOMAIN"),

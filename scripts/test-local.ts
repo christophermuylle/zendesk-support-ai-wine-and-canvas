@@ -38,10 +38,14 @@ class MockZendeskClient implements IZendeskClient {
   async postComment(
     ticketId: number,
     body: string,
-    opts: { isPublic: boolean; status?: ActionType; addTags?: string[] }
+    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[] }
   ): Promise<void> {
-    console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}):`);
+    console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}, htmlBody=${opts.htmlBody ? "yes" : "no"}, uploads=${opts.uploadTokens?.length ?? 0}):`);
     console.log(`     "${body.replace(/\n/g, "\n     ")}"`);
+  }
+  async uploadFile(filename: string, _contentType: string, data: Buffer): Promise<{ token: string; contentUrl: string }> {
+    console.log(`\n  -> would upload file ${filename} (${data.length} bytes)`);
+    return { token: `mock-upload-token-${filename}`, contentUrl: `https://mock.zendesk.com/uploads/${filename}` };
   }
   async updateTicket(
     ticketId: number,

@@ -180,16 +180,20 @@ rules:
       # structured Name/Email/Guests/Preferred Date/Location fields, not the
       # phrases below, so they need their own keywords.
       any_keywords: ["book an event", "book a class", "private event", "date availability", "how do i book", "party request", "guests:", "preferred date"]
-    action: pending
+    # Changed from "pending" (AI-drafted) to "private_event_quote"
+    # 2026-09-21 (Christopher: "We need to now work on Wine and Canvas
+    # private event requests. There are more rules for this brand.") - a
+    # private event inquiry now gets a mechanical, non-AI quote instead of
+    # an AI draft: src/private-event-quotes.ts classifies it into
+    # corporate / fundraiser / kids / standard by keyword (NOT AI
+    # classification, per Christopher's explicit instruction) and renders
+    # the matching literal template, location-filtered to the one city the
+    # inquiry is about. See the "private_event_quote" branch in
+    # src/pipeline.ts. Stays held for human review (never auto-sent) until
+    # PRIVATE_EVENT_QUOTES_LIVE=true is set - see src/config.ts.
+    action: private_event_quote
     force_human_review: false
     add_tags: ["booking_question"]
-    drafting_hint: >
-      Point them to the booking page for their city and ask which date/venue
-      they're interested in if not already stated, so we can confirm
-      availability. If a location was matched, include that location's
-      direct event calendar link (see the "Direct link" line in the
-      matched location's Booking section) rather than just saying "check
-      our website."
 
   - name: event_sign_up_question
     match:

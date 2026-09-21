@@ -25,13 +25,20 @@ export interface IZendeskClient {
   postComment(
     ticketId: number,
     body: string,
-    opts: { isPublic: boolean; status?: ActionType; addTags?: string[] }
+    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[] }
   ): Promise<void>;
   /** Update status, tags, and/or custom fields WITHOUT posting a comment (used for out-of-scope tickets and rule-driven field updates like order confirmations). */
   updateTicket(
     ticketId: number,
     opts: { status?: ZendeskStatus; addTags?: string[]; fields?: Array<{ id: number; value: string | null }> }
   ): Promise<void>;
+  /**
+   * Uploads a binary file (e.g. a template's embedded photo) to Zendesk's
+   * Uploads API so it can be attached to a comment via `uploadTokens` and
+   * referenced in an `htmlBody` <img src="..."> tag. Returns the upload
+   * token AND the public content_url to embed.
+   */
+  uploadFile(filename: string, contentType: string, data: Buffer): Promise<{ token: string; contentUrl: string }>;
 }
 
 export class ZendeskClient implements IZendeskClient {
@@ -123,12 +130,23 @@ export class ZendeskClient implements IZendeskClient {
   async postComment(
     ticketId: number,
     body: string,
-    opts: { isPublic: boolean; status?: ActionType; addTags?: string[] }
+    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[] }
   ): Promise<void> {
     const statusMap: Record<string, string> = { solve: "solved", pending: "pending", escalate: "open" };
-    const ticket: Record<string, unknown> = {
-      comment: { body, public: opts.isPublic },
-    };
+    // When htmlBody is set, send html_body instead of the plain body so
+    // links render as real clickable <a> tags rather than literal markup
+    // (Christopher, 2026-09-21 private-event templates: "Make sure you
+    // hyperlink instead of using HTML link"). Zendesk requires the plain
+    // `body` field too for the fallback/plaintext version of the comment,
+    // so we still send it - Zendesk just prefers html_body for rendering
+    // when both are present.
+    const comment: Record<string, unknown> = opts.htmlBody
+      ? { html_body: opts.htmlBody, body, public: opts.isPublic }
+      : { body, public: opts.isPublic };
+    if (opts.uploadTokens?.length) {
+      comment.uploads = opts.uploadTokens;
+    }
+    const ticket: Record<string, unknown> = { comment };
     if (opts.status && statusMap[opts.status]) {
       ticket.status = statusMap[opts.status];
     }
@@ -168,5 +186,36 @@ export class ZendeskClient implements IZendeskClient {
       method: "PUT",
       body: JSON.stringify({ ticket }),
     });
+  }
+
+  /**
+   * Uploads a binary file (image, etc.) via Zendesk's Uploads API
+   * (https://developer.zendesk.com/api-reference/ticketing/tickets/ticket-attachments/#upload-files)
+   * so it can be embedded in an html_body <img> tag and attached to a
+   * comment via the `uploads` array. Used for the private-event quote
+   * templates' embedded photos (unicorn/family/pet-portrait examples) -
+   * see src/private-event-quotes.ts. Uploads are unassociated (and get
+   * garbage-collected by Zendesk after a few hours) until they're attached
+   * to a comment, so callers should upload and post the comment in the
+   * same request cycle rather than caching tokens across runs.
+   */
+  async uploadFile(filename: string, contentType: string, data: Buffer): Promise<{ token: string; contentUrl: string }> {
+    const res = await fetch(
+      `${this.baseUrl}/uploads.json?filename=${encodeURIComponent(filename)}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: this.authHeader,
+          "Content-Type": contentType,
+        },
+        body: data as unknown as BodyInit,
+      }
+    );
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Zendesk upload failed: ${res.status} ${res.statusText} ${body}`);
+    }
+    const json = (await res.json()) as { upload: { token: string; attachment: { content_url: string } } };
+    return { token: json.upload.token, contentUrl: json.upload.attachment.content_url };
   }
 }
