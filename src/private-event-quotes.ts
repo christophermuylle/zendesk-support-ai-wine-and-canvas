@@ -163,12 +163,20 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
   return null;
 }
 
+/** One row of a per-person, group-size-tiered price list (e.g. "8-29 guests -> $44/person"). */
+export interface PricingTierRow {
+  range: string; // "8-29", "30-49", "50+"
+  pricePerPerson: number;
+}
+
 export interface PrivateEventPricing {
-  corporatePrice: string | null;
-  standardPrice: string | null;
-  fundraiserRetail: string | null;
-  fundraiserKeep: string | null;
-  kidsPrice: string | null;
+  corporateTiers: PricingTierRow[] | null;
+  standardTiers: PricingTierRow[] | null;
+  // Fundraiser and kids pricing work differently (retail/keep split for
+  // fundraiser, flat rate for kids) and haven't been sent yet.
+  fundraiserRetail: string | null; // TODO_CHRISTOPHER
+  fundraiserKeep: string | null; // TODO_CHRISTOPHER
+  kidsPrice: string | null; // TODO_CHRISTOPHER
 }
 
 export interface PrivateEventLocationInfo {
@@ -180,27 +188,94 @@ export interface PrivateEventLocationInfo {
   travelFee?: string;
 }
 
-const TODO_PRICING: PrivateEventPricing = {
-  corporatePrice: null, // TODO_CHRISTOPHER
-  standardPrice: null, // TODO_CHRISTOPHER
-  fundraiserRetail: null, // TODO_CHRISTOPHER
-  fundraiserKeep: null, // TODO_CHRISTOPHER
-  kidsPrice: null, // TODO_CHRISTOPHER
-};
+// Real per-person discount tiers, Christopher 2026-09-21 ("Here is pricing
+// for all locations that includes discounts for 30+ people"). Three
+// pricing groups, each covering several cities:
+//   Group A: Tampa / Fort Myers / Indianapolis / Ft Lauderdale
+//   Group B: Orlando / Naples / Miami (higher tier - confirms Christopher's
+//     earlier "for Miami we charge more than Fort Lauderdale")
+//   Group C: Lansing / Grand Rapids / Cadillac (Lansing itself never
+//     reaches this code - excluded upstream by out_of_scope_location - but
+//     its rate is recorded here in case that scope ever changes)
+// Kept as separate named constants per group (even where two groups'
+// numbers happen to match, like Group A and Group C corporate) so editing
+// one group's rate later can't accidentally move another group with it.
+const GROUP_A_CORPORATE_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 44 },
+  { range: "30-49", pricePerPerson: 40 },
+  { range: "50+", pricePerPerson: 35 },
+];
+const GROUP_A_STANDARD_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 39 },
+  { range: "30-49", pricePerPerson: 35 },
+  { range: "50+", pricePerPerson: 30 },
+];
+const GROUP_B_CORPORATE_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 50 },
+  { range: "30-49", pricePerPerson: 45 },
+  { range: "50+", pricePerPerson: 40 },
+];
+const GROUP_B_STANDARD_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 45 },
+  { range: "30-49", pricePerPerson: 40 },
+  { range: "50+", pricePerPerson: 35 },
+];
+const GROUP_C_CORPORATE_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 44 },
+  { range: "30-49", pricePerPerson: 40 },
+  { range: "50+", pricePerPerson: 35 },
+];
+const GROUP_C_STANDARD_TIERS: PricingTierRow[] = [
+  { range: "8-29", pricePerPerson: 40 },
+  { range: "30-49", pricePerPerson: 35 },
+  { range: "50+", pricePerPerson: 30 },
+];
 
-// TODO_CHRISTOPHER: every restaurantListUrl below except Cadillac's is a
-// placeholder - please resend the real links (and the pricing figures) for
-// each city so these can be filled in. Cadillac's link is the real one you
-// gave me: https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing
+// TODO_CHRISTOPHER: fundraiser (retail/keep) and kids pricing haven't been
+// sent yet - corporate/standard tiers above are real. Restaurant/venue
+// list links are still placeholders except Cadillac's (the real one you
+// gave me: https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing).
 export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEventLocationInfo> = {
-  "fort-myers": { displayName: "Fort Myers / Cape Coral, FL", restaurantListUrl: null, pricing: TODO_PRICING },
-  naples: { displayName: "Naples, FL", restaurantListUrl: null, pricing: TODO_PRICING }, // shares a restaurant link with Miami per Christopher
-  tampa: { displayName: "Tampa / St. Pete / Clearwater, FL", restaurantListUrl: null, pricing: TODO_PRICING },
-  orlando: { displayName: "Orlando, FL", restaurantListUrl: null, pricing: TODO_PRICING },
-  "fort-lauderdale": { displayName: "Fort Lauderdale, FL", restaurantListUrl: null, pricing: TODO_PRICING },
-  miami: { displayName: "Miami, FL", restaurantListUrl: null, pricing: TODO_PRICING }, // prices like Orlando/Naples, NOT Fort Lauderdale; shares restaurant link with Naples
-  indianapolis: { displayName: "Indianapolis, IN", restaurantListUrl: null, pricing: TODO_PRICING },
-  "grand-rapids": { displayName: "Grand Rapids, MI", restaurantListUrl: null, pricing: TODO_PRICING },
+  "fort-myers": {
+    displayName: "Fort Myers / Cape Coral, FL",
+    restaurantListUrl: null,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  naples: {
+    displayName: "Naples, FL",
+    restaurantListUrl: null, // shares a restaurant link with Miami per Christopher
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  tampa: {
+    displayName: "Tampa / St. Pete / Clearwater, FL",
+    restaurantListUrl: null,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  orlando: {
+    displayName: "Orlando, FL",
+    restaurantListUrl: null,
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  "fort-lauderdale": {
+    displayName: "Fort Lauderdale, FL",
+    restaurantListUrl: null,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  miami: {
+    displayName: "Miami, FL",
+    restaurantListUrl: null, // prices like Orlando/Naples, NOT Fort Lauderdale; shares restaurant link with Naples
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  indianapolis: {
+    displayName: "Indianapolis, IN",
+    restaurantListUrl: null,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
+  "grand-rapids": {
+    displayName: "Grand Rapids, MI",
+    restaurantListUrl: null,
+    pricing: { corporateTiers: GROUP_C_CORPORATE_TIERS, standardTiers: GROUP_C_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
+  },
   cadillac: {
     displayName: "Cadillac, MI",
     restaurantListUrl: "https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing",
@@ -209,8 +284,9 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     // same rates as Grand Rapids." / "Yes, Cadillac gets same pricing as
     // Grand Rapids for all templates." - pricing resolved at lookup time
     // in getLocationInfo() below (copies grand-rapids' pricing), not
-    // duplicated here so the two markets can't drift out of sync.
-    pricing: TODO_PRICING,
+    // duplicated here so the two markets can't drift out of sync. Also
+    // matches the Group C rate Christopher sent directly.
+    pricing: { corporateTiers: GROUP_C_CORPORATE_TIERS, standardTiers: GROUP_C_STANDARD_TIERS, fundraiserRetail: null, fundraiserKeep: null, kidsPrice: null },
     travelFee: "$75 travel fee",
   },
 };
@@ -264,6 +340,12 @@ function travelFeeLine(loc: PrivateEventLocationInfo): string {
   return loc.travelFee ? `Please note: ${loc.travelFee} applies for this location.` : "";
 }
 
+/** Renders a group-size-tiered per-person price list, e.g. "8-29 guests: $44/person\n30-49 guests: $40/person\n50+ guests: $35/person". */
+function formatTiers(tiers: PricingTierRow[] | null, label: string): string {
+  if (!tiers) return `[TODO_CHRISTOPHER: ${label} pricing not set yet]`;
+  return tiers.map((t) => `  ${t.range} guests: $${t.pricePerPerson}/person`).join("\n");
+}
+
 export function renderPrivateEventQuote(
   ctx: TicketContext,
   category: PrivateEventCategory,
@@ -295,13 +377,13 @@ export function renderPrivateEventQuote(
 // for it.
 
 function renderCorporate(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string): RenderedQuote {
-  const price = loc.pricing.corporatePrice ?? "[TODO_CHRISTOPHER: corporate price for " + loc.displayName + "]";
   const plainBody = [
     `Hi ${firstName},`,
     ``,
     `Thanks for thinking of Wine and Canvas for your corporate/team event in ${loc.displayName}! [TODO_CHRISTOPHER: real corporate template body]`,
     ``,
-    `Pricing for ${loc.displayName}: ${price}`,
+    `Pricing for ${loc.displayName} (per person, based on group size):`,
+    formatTiers(loc.pricing.corporateTiers, "corporate"),
     loc.restaurantListUrl ? `Restaurant/venue list: ${loc.restaurantListUrl}` : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
     travelFeeLine(loc),
     ``,
@@ -317,13 +399,13 @@ function renderCorporate(loc: PrivateEventLocationInfo, locationKey: PrivateEven
 }
 
 function renderStandard(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string): RenderedQuote {
-  const price = loc.pricing.standardPrice ?? "[TODO_CHRISTOPHER: standard price for " + loc.displayName + "]";
   const plainBody = [
     `Hi ${firstName},`,
     ``,
     `Thanks for reaching out about a private event with Wine and Canvas in ${loc.displayName}! [TODO_CHRISTOPHER: real standard template body]`,
     ``,
-    `Pricing for ${loc.displayName}: ${price}`,
+    `Pricing for ${loc.displayName} (per person, based on group size):`,
+    formatTiers(loc.pricing.standardTiers, "standard"),
     loc.restaurantListUrl ? `Restaurant/venue list: ${loc.restaurantListUrl}` : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
     travelFeeLine(loc),
     ``,
