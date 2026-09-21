@@ -523,12 +523,12 @@ function renderFundraiser(
     ``,
     `Pricing: The group minimum is currently 12 people to host a fundraising event. For fundraisers, we discount the retail rate by $5 and donate the difference to your cause — you can increase the retail rate to raise the donation amount if you like.`,
     ``,
-    `Standard rate for ${loc.displayName} (Step-by-step Canvas, 16×20, 3-hour event): $${retail} per person, so your group keeps $${keep} per ticket.`,
+    `Standard rate for ${loc.displayName} (Step-by-step Canvas, 16×20, 3-hour event): $${retail} per person — we keep $${keep}, and $${retail - keep} per ticket goes to your cause.`,
     `Options to do a 2-hour event on 11×14 will lower the cost — just ask!`,
     travelFeeLine(loc),
     `Travel fees may apply if outside the greater city limits.`,
     ``,
-    `🐾 Pet Portraits: We also do fundraising events with our pet portrait project — a great fit for animal rescues and shelters! Since this is more work-intensive for our artists, we charge $${petPricing.charge} per ticket sold; suggested retail is $${petPricing.retail} (so your group keeps $${petPricing.retail - petPricing.charge} per ticket by default, more if you raise the retail price).`,
+    `🐾 Pet Portraits: We also do fundraising events with our pet portrait project — a great fit for animal rescues and shelters! Since this is more work-intensive for our artists, we charge $${petPricing.charge} per ticket sold; suggested retail is $${petPricing.retail} — we keep $${petPricing.charge}, and $${petPricing.retail - petPricing.charge} per ticket goes to your cause by default (more if you raise the retail price).`,
     `__EMBED_FUNDRAISER_PET_PORTRAIT__`,
     ``,
     `Timing: We book events for 3 hours but can do 2 if you have time restrictions (this doesn't include setup/cleanup - a shorter event may need a smaller canvas or a more simplified image). Pet Portraits is always a 3-hour event.`,
@@ -568,7 +568,7 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     ``,
     `Venue: We are 100% mobile so we do not have a studio space. We are available to host events at any of your preferred locations, including your home.`,
     loc.restaurantListUrl
-      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}: ${loc.restaurantListUrl}. They do not charge for use of space but they do expect everyone to order food and drinks during the event.`
+      ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}: ${loc.restaurantListUrl}. Most don't charge for use of space but they do expect everyone to order food and drinks during the event.`
       : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
     ``,
     `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. This means we don't provide cookies either.`,
