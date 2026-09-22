@@ -9,7 +9,14 @@ import type { RulesEngine } from "./rules.js";
 import type { LocationResolver } from "./locations.js";
 import type { IZendeskClient, ZendeskStatus } from "./zendesk.js";
 import type { Mode } from "./config.js";
-import { ORDER_CONFIRMATION_FIELD_ID, ORDER_CONFIRMATION_FIELD_VALUE, NEWSLETTER_SIGNUP_FIELD_VALUE, PRIVATE_EVENT_QUOTES_LIVE } from "./config.js";
+import {
+  ORDER_CONFIRMATION_FIELD_ID,
+  ORDER_CONFIRMATION_FIELD_VALUE,
+  NEWSLETTER_SIGNUP_FIELD_VALUE,
+  PRIVATE_EVENT_QUOTES_LIVE,
+  PRIVATE_EVENT_QUOTE_SENT_TAG,
+  PRIVATE_EVENT_LOCATION_TAG_PREFIX,
+} from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
 import { extractOrderTotal } from "./util.js";
 import {
@@ -219,10 +226,24 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
 
     await deps.zendesk.postComment(ticketId, quote.plainBody, {
       isPublic: true,
-      status: "pending", // waiting on the customer to confirm a date, not "solved"
+      status: "pending", // waiting on the customer to confirm a date, not "solved" - lets the follow-up sequence pick it up
       htmlBody,
       uploadTokens,
-      addTags: [...(ruleDecision.addTags ?? []), `private_event_${category}`],
+      addTags: [
+        ...(ruleDecision.addTags ?? []),
+        `private_event_${category}`,
+        // Added 2026-09-22 alongside the follow-up sequence (src/followups.ts):
+        // PRIVATE_EVENT_QUOTE_SENT_TAG is the poller's entry-point tag, the
+        // category-suffixed one lets it pick the right email 2 variant
+        // without re-deriving it from ticket text, and the location tag
+        // (using this brand's fine-grained PrivateEventLocationKey, e.g.
+        // "private_event_location_naples" - NOT the coarser locations.yaml
+        // slug, which doesn't distinguish Naples from Fort Myers) lets it
+        // pick the right calendar link and promo code pool at email 3.
+        PRIVATE_EVENT_QUOTE_SENT_TAG,
+        `${PRIVATE_EVENT_QUOTE_SENT_TAG}_${category}`,
+        `${PRIVATE_EVENT_LOCATION_TAG_PREFIX}${locationKey}`,
+      ],
     });
     return { ticketId, ruleDecision, matchedLocation: location.displayName, finalAction: "posted_public_reply", mode: deps.mode };
   }

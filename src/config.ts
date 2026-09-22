@@ -61,6 +61,16 @@ export const NEWSLETTER_SIGNUP_FIELD_VALUE = process.env.NEWSLETTER_SIGNUP_FIELD
 // copy.
 export const PRIVATE_EVENT_QUOTES_LIVE = process.env.PRIVATE_EVENT_QUOTES_LIVE === "true";
 
+// Tag scheme for the private-event follow-up sequence (src/followups.ts) -
+// added 2026-09-22 alongside the follow-up templates themselves. Same
+// naming convention Painting and Vino's config.ts uses for its own
+// (single-pool) version of this sequence.
+export const PRIVATE_EVENT_QUOTE_SENT_TAG = "private_event_quote_sent";
+export const PRIVATE_EVENT_LOCATION_TAG_PREFIX = "private_event_location_";
+export const FOLLOW_UP_1_SENT_TAG = "private_event_followup_1_sent";
+export const FOLLOW_UP_2_SENT_TAG = "private_event_followup_2_sent";
+export const FOLLOW_UP_3_SENT_TAG = "private_event_followup_3_sent";
+
 export const env = {
   zendesk: {
     subdomain: required("ZENDESK_SUBDOMAIN"),

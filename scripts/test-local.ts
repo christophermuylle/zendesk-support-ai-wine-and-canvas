@@ -55,6 +55,9 @@ class MockZendeskClient implements IZendeskClient {
       `\n  -> would set status=${opts.status ?? "unchanged"}, tags+=${opts.addTags?.join(",") ?? "-"}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}, no reply`
     );
   }
+  async searchTicketIds(_query: string): Promise<number[]> {
+    return [];
+  }
 }
 
 // --- Mock AI: used when no ANTHROPIC_API_KEY is set, so the rules engine can be

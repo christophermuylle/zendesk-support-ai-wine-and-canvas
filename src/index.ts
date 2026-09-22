@@ -6,6 +6,7 @@ import { RulesEngine } from "./rules.js";
 import { LocationResolver } from "./locations.js";
 import { AiDrafter } from "./ai.js";
 import { processTicket } from "./pipeline.js";
+import { runFollowUpSweep } from "./followups.js";
 
 const zendesk = new ZendeskClient({
   subdomain: env.zendesk.subdomain,
@@ -84,6 +85,53 @@ app.post("/webhooks/zendesk/ticket-updated", async (req, res) => {
   }
 });
 
+// Manual trigger for the private-event follow-up sweep (24h/72h/120h
+// no-response emails - see src/followups.ts) - useful for testing without
+// waiting for the interval below.
+app.post("/internal/run-follow-up-sweep", async (_req, res) => {
+  try {
+    const result = await runFollowUpSweep({ zendesk });
+    console.log(
+      `[followups] manual sweep: checked=${result.checked} sent=${result.sent.length} errors=${result.errors.length}`
+    );
+    res.json(result);
+  } catch (err) {
+    console.error("[followups] manual sweep failed:", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.listen(env.port, () => {
   console.log(`Zendesk support AI listening on port ${env.port} (mode=${env.mode}, brand=${env.brand})`);
 });
+
+// Private event follow-up poller (src/followups.ts) - runs every 30
+// minutes, independent of the Zendesk webhook (nothing about "24 hours
+// passed with no reply" is a ticket update Zendesk can notify us about, so
+// this has to poll on its own schedule instead). 30 minutes keeps each
+// stage's actual send time within half an hour of its 24h/72h/120h target,
+// which is plenty precise for a "did you get my email" nudge. Runs once
+// immediately on startup too, then on the interval, and errors are caught
+// per-sweep so one bad run doesn't kill the interval - see runFollowUpSweep
+// for per-ticket error isolation. Same pattern as Painting and Vino's
+// src/index.ts.
+const FOLLOW_UP_SWEEP_INTERVAL_MS = 30 * 60 * 1000;
+
+async function sweepOnce() {
+  try {
+    const result = await runFollowUpSweep({ zendesk });
+    if (result.sent.length || result.errors.length) {
+      console.log(
+        `[followups] sweep: checked=${result.checked} sent=${result.sent.length} errors=${result.errors.length}`
+      );
+    }
+    for (const e of result.errors) {
+      console.error(`[followups] ticket ${e.ticketId} failed:`, e.error);
+    }
+  } catch (err) {
+    console.error("[followups] sweep failed entirely:", err);
+  }
+}
+
+sweepOnce();
+setInterval(sweepOnce, FOLLOW_UP_SWEEP_INTERVAL_MS);

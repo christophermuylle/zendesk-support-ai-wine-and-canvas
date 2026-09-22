@@ -39,6 +39,8 @@ export interface IZendeskClient {
    * token AND the public content_url to embed.
    */
   uploadFile(filename: string, contentType: string, data: Buffer): Promise<{ token: string; contentUrl: string }>;
+  /** Used only by the private-event follow-up poller (src/followups.ts) to find candidate tickets. */
+  searchTicketIds(query: string): Promise<number[]>;
 }
 
 export class ZendeskClient implements IZendeskClient {
@@ -186,6 +188,35 @@ export class ZendeskClient implements IZendeskClient {
       method: "PUT",
       body: JSON.stringify({ ticket }),
     });
+  }
+
+  /**
+   * Find ticket IDs matching a Zendesk Search query, e.g.
+   * `type:ticket status:pending tags:private_event_quote_sent`. Follows
+   * `next_page` to collect every page rather than just the first 100 -
+   * results are expected to be a small queue (private event follow-ups),
+   * but silently dropping tickets past page 1 would be a real bug in an
+   * unattended poller, so this is deliberately not capped.
+   *
+   * Deliberately does NOT try to express "updated more than 24 hours ago"
+   * in the query string - Zendesk Search's date filters are day-granularity
+   * only, not hour-granularity, so they can't express the 24h/72h/120h
+   * windows the follow-up poller (src/followups.ts) needs precisely.
+   * Callers search broadly (by tag/status only) and do exact hour-math
+   * filtering themselves against each ticket's real timestamps.
+   */
+  async searchTicketIds(query: string): Promise<number[]> {
+    const ids: number[] = [];
+    let path: string | null = `/search.json?query=${encodeURIComponent(query)}&sort_by=updated_at&sort_order=asc`;
+    while (path) {
+      const data: { results: Array<{ id: number }>; next_page: string | null } = await this.request(path);
+      ids.push(...data.results.map((r) => r.id));
+      // next_page is a full URL (including the base) - strip it back down to
+      // a path relative to this.baseUrl so the same authenticated request()
+      // helper can follow it.
+      path = data.next_page ? data.next_page.replace(this.baseUrl, "") : null;
+    }
+    return ids;
   }
 
   /**
