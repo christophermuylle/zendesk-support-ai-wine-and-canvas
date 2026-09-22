@@ -248,6 +248,38 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
       brand: "wine_and_canvas",
     },
   },
+  {
+    // Regression test mirroring Painting and Vino's fix for the bug Bonnie
+    // reported 2026-09-22 (ticket #29199 on that brand): "the same email is
+    // sending out over and over." Same root cause applies here - the
+    // webhook re-runs processTicket on EVERY ticket update, and
+    // event_booking_question's broad keyword list can still match the
+    // customer's own reply after a quote already went out. This scenario
+    // simulates a ticket already tagged private_event_quote_sent (quote
+    // already sent), where the customer's LATEST message still contains a
+    // matching keyword ("party"). Expected: no second quote - falls back
+    // to an internal note for a human instead.
+    label: "REGRESSION: customer reply after quote already sent should NOT re-send the quote",
+    ctx: {
+      ticket: {
+        id: 29199,
+        subject: "Re: Party request from Test Customer",
+        description: "Party request from Test Customer. Guests: about 20. Preferred date: flexible.",
+        status: "pending",
+        requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_quote_sent", "private_event_quote_sent_standard", "private_event_location_tampa"],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Test Customer", email: "test@example.com" },
+      comments: [
+        makeComment("Party request from Test Customer. Guests: about 20. Preferred date: flexible.", CUSTOMER_ID),
+        makeComment("[Bonnie's original private event quote already sent here]", 999), // the agent's own quote reply - the anchor a real ticket would have
+        makeComment("Thanks so much! Quick question about our party - can we bring our own cake?", CUSTOMER_ID), // the reply that should NOT re-trigger a quote
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -259,6 +291,7 @@ async function main() {
   console.log(`Running ${scenarios.length} mock tickets through the pipeline (AI: ${useRealAi ? "real Claude API" : "mock, offline"})\n`);
   console.log("Loaded rules:", (yaml.load(fs.readFileSync(path.join(CONFIG_DIR, "rules.yaml"), "utf-8")) as { rules: { name: string }[] }).rules.map((r) => r.name).join(", "));
 
+  const resultsByLabel = new Map<string, Awaited<ReturnType<typeof processTicket>>>();
   for (const scenario of scenarios) {
     console.log(`\n=== ${scenario.label} ===`);
     const zendesk = new MockZendeskClient(scenario.ctx);
@@ -266,6 +299,7 @@ async function main() {
       { zendesk, rules, locations, ai, sharedKnowledgeBase, loadLocationSnippet, mode: "draft" },
       scenario.ctx.ticket.id
     );
+    resultsByLabel.set(scenario.label, result);
     console.log(`  matched rule: ${result.ruleDecision.matchedRule}`);
     console.log(`  matched location: ${result.matchedLocation ?? "(none)"}`);
     if (result.draft) {
@@ -275,6 +309,18 @@ async function main() {
     }
     console.log(`  final: ${result.finalAction}`);
   }
+
+  // --- Regression check (mirrors Painting and Vino's ticket #29199 fix) ---
+  const regressionLabel = "REGRESSION: customer reply after quote already sent should NOT re-send the quote";
+  const regressionResult = resultsByLabel.get(regressionLabel);
+  if (!regressionResult) throw new Error(`ASSERTION FAILED: regression scenario "${regressionLabel}" did not run`);
+  if (regressionResult.finalAction !== "posted_internal_note") {
+    throw new Error(
+      `ASSERTION FAILED: reply-after-quote regression - expected finalAction "posted_internal_note" (no re-send), got "${regressionResult.finalAction}". ` +
+        `This means a customer reply after the quote was already sent would trigger ANOTHER copy of the quote email - the exact bug Bonnie reported on Painting and Vino.`
+    );
+  }
+  console.log("\nRegression check passed: reply-after-quote does not re-send the quote email.");
 }
 
 main().catch((err) => {

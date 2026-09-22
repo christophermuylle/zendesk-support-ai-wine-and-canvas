@@ -175,6 +175,38 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
   // it to draft mode. Once I have everything sent to you, I will let you
   // know to go live."
   if (ruleDecision.action === "private_event_quote") {
+    // Idempotency guard: send the automated quote once per ticket, never
+    // again. Without this, ANY later webhook call for this ticket -
+    // including the customer's own reply, since this branch re-runs on
+    // every ticket update, not just the first message - can re-match
+    // event_booking_question's broad keyword list (people keep saying
+    // "party"/"event"/"birthday" while confirming details) and re-send the
+    // exact same quote email. Reported by Bonnie 2026-09-22 (ticket
+    // #29199 on Painting and Vino - same architecture here, so this brand
+    // has the identical exposure): "the same email is sending out over
+    // and over." Once PRIVATE_EVENT_QUOTE_SENT_TAG is already on the
+    // ticket, any further message is a real reply that needs a human, not
+    // another copy of the template.
+    if (ctx.ticket.tags.includes(PRIVATE_EVENT_QUOTE_SENT_TAG)) {
+      const note = [
+        `[PRIVATE EVENT - customer replied after the quote was already sent]`,
+        `Matched rule: ${ruleDecision.matchedRule}`,
+        ``,
+        `A private-event quote was already sent on this ticket, so this looks like the customer's reply rather than a fresh inquiry - needs a human, not another copy of the same quote.`,
+      ].join("\n");
+      await deps.zendesk.postComment(ticketId, note, {
+        isPublic: false,
+        addTags: ["needs_human", "private_event_reply_after_quote"],
+      });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: null,
+        finalAction: "posted_internal_note",
+        mode: deps.mode,
+      };
+    }
+
     const location = deps.locations.resolve(ctx);
     const locationKey = location ? resolvePrivateEventLocationKey(ctx, location.slug) : null;
 
