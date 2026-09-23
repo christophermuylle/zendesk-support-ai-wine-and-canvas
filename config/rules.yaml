@@ -171,6 +171,23 @@ rules:
     force_human_review: false
     add_tags: ["promo_code_question"]
 
+  - name: private_event_reply_after_quote_sent
+    match:
+      # Placed ahead of event_booking_question (and its new
+      # required_keywords gate below) so a ticket already tagged
+      # private_event_quote_sent still routes to the SAME
+      # "private_event_quote" action on every later reprocess - the
+      # idempotency guard at the top of that pipeline.ts branch is what
+      # actually stops the quote from being re-sent, tagging the ticket
+      # needs_human instead. Without this rule, a customer's short reply
+      # ("thanks! quick question...") wouldn't contain the required
+      # contact-form phrase below and would fall through to a generic FAQ
+      # rule instead of that specific, better-tagged handling.
+      tags: ["private_event_quote_sent"]
+    action: private_event_quote
+    force_human_review: false
+    add_tags: ["booking_question"]
+
   - name: event_booking_question
     match:
       # "party request", "guests:", "preferred date" added 2026-09-13 after
@@ -180,6 +197,28 @@ rules:
       # structured Name/Email/Guests/Preferred Date/Location fields, not the
       # phrases below, so they need their own keywords.
       any_keywords: ["book an event", "book a class", "private event", "date availability", "how do i book", "party request", "guests:", "preferred date"]
+      # required_keywords added 2026-09-23 per Christopher: "Wine and
+      # Canvas can be Party Request from Wine & Canvas. That is in every
+      # Private Event Inquiry subject line." Confirmed directly against
+      # ticket #29199 (Rachael Nesbitt, genuine inquiry) - the phrase isn't
+      # actually in the Zendesk-displayed SUBJECT (that's templated as
+      # "Party Request from [Name]"), it's the fixed first line of the
+      # contact form's own message body, present on every real submission
+      # ("-- This e-mail was sent from a contact form on Wine & Canvas" is
+      # the matching closing line). Made REQUIRED - not just another
+      # any_keywords option - because the broad keyword list above is
+      # exactly what let two real staff/licensee messages get auto-quoted
+      # by mistake: #29225 (Kiara Kelly, "New Private event inquiry - are
+      # you available - 10/24") and #29206 (Amanda Winden, "Re: Wine and
+      # canvas Events", an unrelated website-bug thread CC'ing St. Julian
+      # Winery). Unlike Painting and Vino, every genuine Wine and Canvas
+      # private-event inquiry comes in through this one contact form - see
+      # the note above - so gating on it here costs nothing on the
+      # true-positive side. (There's also a separate,
+      # sender-email-address-based guard in pipeline.ts,
+      # isInternalBrandSender - this is a second, independent layer, not a
+      # replacement for it.)
+      required_keywords: ["party request from wine & canvas"]
     # Changed from "pending" (AI-drafted) to "private_event_quote"
     # 2026-09-21 (Christopher: "We need to now work on Wine and Canvas
     # private event requests. There are more rules for this brand.") - a

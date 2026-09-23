@@ -33,3 +33,20 @@ export function extractOrderTotal(text: string): number | null {
   const value = Number(match[1].replace(/,/g, ""));
   return Number.isNaN(value) ? null : value;
 }
+
+/**
+ * True when an email address looks like one of the brand's own internal
+ * or licensee mailboxes (e.g. "wineandcanvas.gw@gmail.com",
+ * "wineandcanvas.gr@gmail.com") rather than a real customer's personal
+ * address - i.e. the local part (before the @) starts with the brand's
+ * own name. Used to keep the "private_event_quote" pipeline branch from
+ * auto-quoting a staff member or licensee's own outreach/internal chatter
+ * just because it happens to use private-event vocabulary - see
+ * PRIVATE_EVENT_INTERNAL_SENDER_PREFIX in src/config.ts for the real
+ * tickets this was confirmed against.
+ */
+export function isInternalBrandSender(email: string | null | undefined, brandLocalPartPrefix: string): boolean {
+  if (!email || !brandLocalPartPrefix) return false;
+  const localPart = email.trim().toLowerCase().split("@")[0];
+  return localPart.startsWith(brandLocalPartPrefix.toLowerCase());
+}

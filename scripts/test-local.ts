@@ -280,6 +280,88 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
       brand: "wine_and_canvas",
     },
   },
+  {
+    // TRUE POSITIVE guard: a genuine contact-form Party Request must keep
+    // auto-quoting after the required_keywords gate was added below to
+    // event_booking_question (2026-09-23). Body text is the real fixed
+    // boilerplate confirmed against ticket #29199 (Rachael Nesbitt) -
+    // "Party Request from Wine & Canvas" as the first line, "This e-mail
+    // was sent from a contact form on Wine & Canvas" as the closing line.
+    label: "TRUE POSITIVE (mirrors ticket #29199): genuine contact-form Party Request should still auto-quote",
+    ctx: {
+      ticket: {
+        id: 90001,
+        subject: "Party Request from Test Customer",
+        description: "Party Request from Wine & Canvas\n\nName: Test Customer\nEmail: testcustomer@example.com\nGuests: 12\nPreferred Date: 2027-03-06\nLocation: Indianapolis\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Test Customer", email: "testcustomer@example.com" },
+      comments: [
+        makeComment(
+          "Party Request from Wine & Canvas\n\nName: Test Customer\nEmail: testcustomer@example.com\nGuests: 12\nPreferred Date: 2027-03-06\nLocation: Indianapolis\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+          CUSTOMER_ID
+        ),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // REGRESSION (ticket #29225): Kiara Kelly, a Wine and Canvas licensee
+    // (Greater Indianapolis), chatting with Bonnie about a new booking
+    // from her own operational mailbox - misfired into an auto-quote
+    // before this fix. Real subject/requester confirmed live in Zendesk.
+    // Expected: falls through event_booking_question (missing the
+    // contact-form phrase) to a generic no_action rule - no quote sent.
+    label: "REGRESSION (ticket #29225): licensee's own booking chatter should NOT be auto-quoted",
+    ctx: {
+      ticket: {
+        id: 29225,
+        subject: "New Private event inquiry - are you available - 10/24",
+        description: "Hey Bonnie, do we have anyone available for a private event 10/24? Let me know!",
+        status: "new",
+        requester_id: 5001,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: 5001, name: "Wineandcanvas Gw", email: "wineandcanvas.gw@gmail.com" },
+      comments: [makeComment("Hey Bonnie, do we have anyone available for a private event 10/24? Let me know!", 5001)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // REGRESSION (ticket #29206): Amanda Winden, the Grand Rapids
+    // licensee, CC'ing external partners (St. Julian Winery) on an
+    // unrelated website-bug-report thread that happened to be subjected
+    // "Re: Wine and canvas Events" - also misfired into an auto-quote
+    // (and sent externally) before this fix.
+    label: "REGRESSION (ticket #29206): licensee website-bug thread should NOT be auto-quoted",
+    ctx: {
+      ticket: {
+        id: 29206,
+        subject: "Re: Wine and canvas Events",
+        description:
+          "Good afternoon, I'll add support to this, hello Bonnie - can you look into this? Also, let's get another private event booked for our next painting event once the website's fixed.",
+        status: "new",
+        requester_id: 5002,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: 5002, name: "Amanda Winden", email: "wineandcanvas.gr@gmail.com" },
+      comments: [
+        makeComment(
+          "Good afternoon, I'll add support to this, hello Bonnie - can you look into this? Also, let's get another private event booked for our next painting event once the website's fixed.",
+          5002
+        ),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -321,6 +403,37 @@ async function main() {
     );
   }
   console.log("\nRegression check passed: reply-after-quote does not re-send the quote email.");
+
+  // --- Regression checks for the internal-sender/staff-misfire fix (2026-09-23) ---
+  const truePositiveLabel = "TRUE POSITIVE (mirrors ticket #29199): genuine contact-form Party Request should still auto-quote";
+  const truePositiveResult = resultsByLabel.get(truePositiveLabel);
+  if (!truePositiveResult) throw new Error(`ASSERTION FAILED: scenario "${truePositiveLabel}" did not run`);
+  if (truePositiveResult.ruleDecision.matchedRule !== "event_booking_question") {
+    throw new Error(
+      `ASSERTION FAILED: genuine Party Request regression - expected matched rule "event_booking_question", got "${truePositiveResult.ruleDecision.matchedRule}". ` +
+        `This means the new required_keywords gate is ALSO blocking real customer inquiries, not just staff misfires - that would silently stop answering genuine private-event requests.`
+    );
+  }
+
+  for (const label of [
+    "REGRESSION (ticket #29225): licensee's own booking chatter should NOT be auto-quoted",
+    "REGRESSION (ticket #29206): licensee website-bug thread should NOT be auto-quoted",
+  ]) {
+    const result = resultsByLabel.get(label);
+    if (!result) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (result.ruleDecision.matchedRule === "event_booking_question" || result.ruleDecision.matchedRule === "private_event_reply_after_quote_sent") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched rule "${result.ruleDecision.matchedRule}" would still trigger a private-event quote. ` +
+          `This is the exact staff-misfire bug (a licensee's own operational email getting auto-quoted as if it were a real customer inquiry).`
+      );
+    }
+    if (result.finalAction !== "skipped_out_of_scope") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - expected finalAction "skipped_out_of_scope" (falls through to a generic no-action rule), got "${result.finalAction}".`
+      );
+    }
+  }
+  console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }
 
 main().catch((err) => {

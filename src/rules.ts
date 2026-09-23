@@ -8,6 +8,11 @@ interface RawRule {
   match: {
     any_keywords?: string[];
     all_keywords?: string[];
+    // Every phrase here must be present, in addition to whatever
+    // any_keywords/all_keywords/tags below also require - an AND-gate
+    // layered on top of their OR-logic. Added 2026-09-23 for
+    // event_booking_question: see config/rules.yaml for why.
+    required_keywords?: string[];
     tags?: string[];
   };
   action: ActionType;
@@ -60,10 +65,20 @@ export class RulesEngine {
 
   private matches(rule: RawRule, text: string, ticketTags: Set<string>): boolean {
     const m = rule.match ?? {};
+
+    // required_keywords must ALL be present or this rule does not match,
+    // no matter what any_keywords/all_keywords/tags below would otherwise
+    // match. See the RawRule interface above for when to use this.
+    if (m.required_keywords?.length) {
+      if (!m.required_keywords.every((k) => text.includes(k.toLowerCase()))) return false;
+    }
+
     const hasAnyMatcher = m.any_keywords?.length || m.all_keywords?.length || m.tags?.length;
 
     if (!hasAnyMatcher) {
-      // Empty match block = catch-all (used for the fallback rule).
+      // Empty match block = catch-all (used for the fallback rule). If
+      // required_keywords was the only matcher specified and it passed
+      // above, this rule matches.
       return true;
     }
 

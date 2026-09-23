@@ -61,6 +61,20 @@ export const NEWSLETTER_SIGNUP_FIELD_VALUE = process.env.NEWSLETTER_SIGNUP_FIELD
 // copy.
 export const PRIVATE_EVENT_QUOTES_LIVE = process.env.PRIVATE_EVENT_QUOTES_LIVE === "true";
 
+// Guards the "private_event_quote" pipeline branch against auto-quoting a
+// message that only LOOKS like a private-event inquiry because it came
+// from one of Wine and Canvas's own internal/licensee mailboxes, not a
+// real customer. Confirmed on two real tickets, both misfired 2026-09-2x:
+// #29225 (Kiara Kelly, requester wineandcanvas.gw@gmail.com, chatting with
+// Bonnie about a booking) and #29206 (Amanda Winden, requester
+// wineandcanvas.gr@gmail.com, CC'ing St. Julian Winery on an unrelated
+// website-bug thread that happened to mention "Wine and canvas Events").
+// Both licensees email FROM an address that is itself named after the
+// brand ("wineandcanvas.<location>@gmail.com") rather than a personal
+// address - see isInternalBrandSender in src/util.ts. A real customer's
+// email is essentially never going to start with the company's own name.
+export const PRIVATE_EVENT_INTERNAL_SENDER_PREFIX = "wineandcanvas";
+
 // Tag scheme for the private-event follow-up sequence (src/followups.ts) -
 // added 2026-09-22 alongside the follow-up templates themselves. Same
 // naming convention Painting and Vino's config.ts uses for its own

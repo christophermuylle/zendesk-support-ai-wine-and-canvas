@@ -16,9 +16,10 @@ import {
   PRIVATE_EVENT_QUOTES_LIVE,
   PRIVATE_EVENT_QUOTE_SENT_TAG,
   PRIVATE_EVENT_LOCATION_TAG_PREFIX,
+  PRIVATE_EVENT_INTERNAL_SENDER_PREFIX,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
-import { extractOrderTotal } from "./util.js";
+import { extractOrderTotal, isInternalBrandSender } from "./util.js";
 import {
   classifyPrivateEvent,
   resolvePrivateEventLocationKey,
@@ -197,6 +198,33 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
         addTags: ["needs_human", "private_event_reply_after_quote"],
+      });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: null,
+        finalAction: "posted_internal_note",
+        mode: deps.mode,
+      };
+    }
+
+    // Internal-sender guard: skip the automatic quote when the requester
+    // is one of Wine and Canvas's own internal/licensee mailboxes, not a
+    // real customer - see PRIVATE_EVENT_INTERNAL_SENDER_PREFIX in
+    // src/config.ts for the two real tickets (#29225 Kiara Kelly, #29206
+    // Amanda Winden) that motivated this. Checked before location
+    // resolution since there's no point resolving a location for a
+    // message that was never a real inquiry in the first place.
+    if (isInternalBrandSender(ctx.requester?.email, PRIVATE_EVENT_INTERNAL_SENDER_PREFIX)) {
+      const note = [
+        `[PRIVATE EVENT - sender looks internal, not a customer]`,
+        `Matched rule: ${ruleDecision.matchedRule}`,
+        ``,
+        `Requester email (${ctx.requester?.email ?? "unknown"}) matches this brand's own internal/licensee mailbox pattern, not a real customer's address - skipping the automatic quote so a human can check who this is actually from and reply appropriately.`,
+      ].join("\n");
+      await deps.zendesk.postComment(ticketId, note, {
+        isPublic: false,
+        addTags: ["needs_human", "private_event_internal_sender"],
       });
       return {
         ticketId,
