@@ -166,6 +166,23 @@ async function main() {
   assert(sentStages(7).length === 0, "ticket 7 (Cadillac, stage 3 due, no promo config) should NOT auto-send either");
   assert(store.get(7)!.ticket.tags.includes("needs_human"), "ticket 7 (Cadillac) should also fall back to needs_human, same as any other location, when promo codes aren't configured");
 
+  assert(
+    store.get(5)!.ticket.status === "pending",
+    "ticket 5 (all three follow-ups already sent) should REST in pending, not solved - the stage-3 tag ends the sequence, not the status (Christopher, 2026-09-24)"
+  );
+
+  // Blanket invariant: this sweep must never leave a private-event ticket
+  // Solved. Christopher, 2026-09-24: "You should never close Private Event
+  // tickets as closed. Only pending. Let the human solve and close them."
+  // Email 3 used to Solve the ticket, which is how a batch of private-event
+  // tickets ended up Solved without a human ever seeing them.
+  for (const [id, t] of store) {
+    assert(
+      t.ticket.status !== "solved",
+      `ticket ${id} was left Solved by the follow-up sweep - private-event tickets must stay Pending for a human to solve and close`
+    );
+  }
+
   console.log("\nAll assertions passed.");
 }
 

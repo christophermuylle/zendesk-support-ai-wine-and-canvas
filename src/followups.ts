@@ -4,9 +4,17 @@
 // out - not from each other:
 //   - Email 1 at 24h, if still pending with no customer reply.
 //   - Email 2 at 72h (Corporate or Standard variant), same condition.
-//   - Email 3 at 120h: includes a one-time $10 promo code, and SOLVES the
-//     ticket (this is the sequence's end - a human re-opens it manually if
-//     the customer replies after this point).
+//   - Email 3 at 120h: includes a one-time $10 promo code. Leaves the
+//     ticket PENDING, like the other two.
+//
+// Christopher, 2026-09-24: "You should never close Private Event tickets
+// as closed. Only pending. Let the human solve and close them." Email 3
+// used to Solve the ticket as the sequence's end, which is why a batch of
+// private-event tickets ended up Solved with no human ever having looked
+// at them. Nothing in this file sets any status other than "pending" now;
+// the FOLLOW_UP_3_SENT_TAG is what ends the sequence, not the status, so
+// a ticket sitting in pending after email 3 is picked up by the sweep,
+// matched by nextStage() as all-sent, and skipped without re-sending.
 //
 // This runs as a periodic sweep (see index.ts's setInterval), NOT off the
 // Zendesk ticket-update webhook - unlike every other rule in this codebase,
@@ -224,7 +232,9 @@ async function processCandidate(
 
   await deps.zendesk.postComment(ticketId, "", {
     isPublic: true,
-    status: "solve",
+    // Pending, never "solve" - see the Christopher 2026-09-24 note in this
+    // file's header. A human solves and closes private-event tickets.
+    status: "pending",
     addTags: [stageTag],
     htmlBody: renderEmail3(code, displayName, calendarLink),
   });
