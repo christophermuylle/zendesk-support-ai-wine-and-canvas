@@ -394,6 +394,30 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (2026-09-24): newsletter signups are in scope for EVERY
+    // city, including the ones out_of_scope_location excludes. Before
+    // newsletter_signup_ticket was moved above that rule, a signup whose
+    // body carried an excluded city in the "city, state" form would have
+    // been tagged out_of_scope and left Open instead of being filed and
+    // closed - the same hijack that hit order #180710.
+    label: "REGRESSION: Newsletter Sign Up naming an excluded city should still be filed and closed",
+    ctx: {
+      ticket: {
+        id: 90002,
+        subject: "Wine and Canvas - Lansing Newsletter Sign Up",
+        description: "Newsletter Sign Up\n\nEmail: signup@example.com\nCity: Lansing, MI",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Signup Person", email: "signup@example.com" },
+      comments: [makeComment("Newsletter Sign Up\n\nEmail: signup@example.com\nCity: Lansing, MI", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -481,6 +505,23 @@ async function main() {
     );
   }
   console.log("Regression check passed: order notifications from excluded cities are still categorised and solved (#180710).");
+
+  // --- Regression check for the newsletter rule-ordering fix (2026-09-24) ---
+  const newsLabel = "REGRESSION: Newsletter Sign Up naming an excluded city should still be filed and closed";
+  const newsResult = resultsByLabel.get(newsLabel);
+  if (!newsResult) throw new Error(`ASSERTION FAILED: scenario "${newsLabel}" did not run`);
+  if (newsResult.ruleDecision.matchedRule !== "newsletter_signup_ticket") {
+    throw new Error(
+      `ASSERTION FAILED: newsletter ordering regression - expected matched rule "newsletter_signup_ticket", got "${newsResult.ruleDecision.matchedRule}". ` +
+        `out_of_scope_location is hijacking newsletter signups - check the rule order in config/rules.yaml.`
+    );
+  }
+  if (newsResult.finalAction !== "newsletter_signup_solved_and_closed") {
+    throw new Error(
+      `ASSERTION FAILED: newsletter ordering regression - expected finalAction "newsletter_signup_solved_and_closed", got "${newsResult.finalAction}".`
+    );
+  }
+  console.log("Regression check passed: newsletter signups from excluded cities are still filed and closed.");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }

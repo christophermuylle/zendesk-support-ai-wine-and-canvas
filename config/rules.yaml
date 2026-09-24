@@ -85,6 +85,33 @@ rules:
     action: order_confirmation
     force_human_review: false
 
+  # "<Brand> - <City> Newsletter Sign Up" tickets from each city's newsletter
+  # signup form (e.g. https://wineandcanvas.com/indianapolis) - confirmed
+  # against a real ticket (#29078, Christopher, 2026-09-20): subject reads
+  # "Wine and Canvas - Indianapolis Newsletter Sign Up", and the correct
+  # "Reason for Customer Contacting Us" option is "Newsletter Sign up".
+  # Applies to every city, not just Indianapolis ("Every city" - Christopher,
+  # 2026-09-20). Matches on subject text so the city name doesn't matter.
+  #
+  # Christopher, 2026-09-24: MOVED above out_of_scope_location, same as
+  # new_order_confirmation just above ("newsletter_signup_ticket - all
+  # within scope"). Newsletter signups are in scope for EVERY city
+  # including the excluded ones, so an excluded city's name appearing
+  # anywhere in the ticket must not hijack this rule the way it hijacked
+  # order #180710. Like order_confirmation this is mechanical - no AI
+  # call, no reply of any kind - so running it ahead of the location
+  # check cannot "respond to" an excluded city's ticket.
+  #
+  # SCOPE LIMIT (Christopher, 2026-09-24: "only for this unless told
+  # otherwise"): new_order_confirmation and newsletter_signup_ticket are
+  # the ONLY rules that belong above out_of_scope_location. Do not move
+  # any other rule up without Christopher explicitly asking.
+  - name: newsletter_signup_ticket
+    match:
+      any_keywords: ["newsletter sign up", "newsletter signup"]
+    action: newsletter_signup
+    force_human_review: false
+
   # Wine and Canvas locations that run their OWN customer support - never
   # respond to, tag, or touch tickets for these. Bonnie/Amber only handle a
   # subset of locations; everything else stays hands-off.
@@ -138,19 +165,6 @@ rules:
     action: no_action
     force_human_review: false
     add_tags: ["out_of_scope_location"]
-
-  # "<Brand> - <City> Newsletter Sign Up" tickets from each city's newsletter
-  # signup form (e.g. https://wineandcanvas.com/indianapolis) - confirmed
-  # against a real ticket (#29078, Christopher, 2026-09-20): subject reads
-  # "Wine and Canvas - Indianapolis Newsletter Sign Up", and the correct
-  # "Reason for Customer Contacting Us" option is "Newsletter Sign up".
-  # Applies to every city, not just Indianapolis ("Every city" - Christopher,
-  # 2026-09-20). Matches on subject text so the city name doesn't matter.
-  - name: newsletter_signup_ticket
-    match:
-      any_keywords: ["newsletter sign up", "newsletter signup"]
-    action: newsletter_signup
-    force_human_review: false
 
   - name: refund_or_cancellation_request
     match:
