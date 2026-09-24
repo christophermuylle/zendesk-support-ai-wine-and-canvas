@@ -53,6 +53,13 @@ const HOURS_STAGE_1 = 24;
 const HOURS_STAGE_2 = 72;
 const HOURS_STAGE_3 = 120;
 
+/**
+ * Minimum hours between two automated messages on the same ticket,
+ * regardless of what the stage thresholds say. See the guard in
+ * processCandidate for the incident this exists to prevent.
+ */
+const MIN_HOURS_BETWEEN_SENDS = 24;
+
 // ---------------------------------------------------------------------------
 // Per-location calendar link (email 3's "browse upcoming events" link) and
 // promo code pool - both confirmed by Christopher 2026-09-22.
@@ -165,11 +172,32 @@ async function processCandidate(
 
   // The quote itself - see file header note on why "first public comment
   // NOT from the requester" is used as the anchor.
-  const quoteComment = ctx.comments.find((c) => c.public && c.author_id !== ctx.ticket.requester_id);
+  const outbound = ctx.comments.filter((c) => c.public && c.author_id !== ctx.ticket.requester_id);
+  const quoteComment = outbound[0];
   if (!quoteComment) return { outcome: "skipped_not_eligible" }; // shouldn't happen - we only tag after posting one
 
   const threshold = stage === 1 ? HOURS_STAGE_1 : stage === 2 ? HOURS_STAGE_2 : HOURS_STAGE_3;
   if (hoursSince(quoteComment.created_at) < threshold) return { outcome: "skipped_not_due" };
+
+  // Minimum gap between anything we send. All three thresholds are measured
+  // from the SAME anchor, so a ticket that only becomes eligible after the
+  // anchor is already old has every stage "due" at once - and the sweep
+  // would then fire stages 1, 2 and 3 on consecutive ticks, minutes apart.
+  //
+  // That is not hypothetical: on 2026-09-24 tickets #29001 (Nigel
+  // Fernandez) and #29107 each received three to four automated emails
+  // inside half an hour, because they had been quoted BY HAND on 2026-09-18
+  // and only got tagged days later - 150h since the anchor, so all three
+  // thresholds were long past. Every redeploy made it worse by running an
+  // extra sweep on startup (fixed separately in src/index.ts).
+  //
+  // The narrowest gap the cadence ever intends is 24h (quote -> email 1;
+  // the later gaps are 48h each), so nothing automated may go out within
+  // 24h of our own last outbound message on the ticket. A ticket with a
+  // stale anchor now walks through the sequence a day at a time instead of
+  // emptying it in one afternoon.
+  const lastOutbound = outbound[outbound.length - 1];
+  if (hoursSince(lastOutbound.created_at) < MIN_HOURS_BETWEEN_SENDS) return { outcome: "skipped_not_due" };
 
   const stageTag = stage === 1 ? FOLLOW_UP_1_SENT_TAG : stage === 2 ? FOLLOW_UP_2_SENT_TAG : FOLLOW_UP_3_SENT_TAG;
   const first = firstName(ctx.requester?.name);

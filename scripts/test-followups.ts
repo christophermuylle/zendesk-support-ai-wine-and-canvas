@@ -135,6 +135,16 @@ async function main() {
   t7.ticket.tags.push("private_event_followup_1_sent", "private_event_followup_2_sent");
   store.set(7, t7);
 
+  // 20: the #29001 / #29107 shape. Quoted 150h ago so ALL THREE stage
+  // thresholds are already past, but we sent something on this ticket only
+  // 1h ago. Must send nothing - before the 2026-09-24 fix this is exactly
+  // how a customer got the quote plus all three follow-ups inside half an
+  // hour (one per sweep tick, and every redeploy triggered an extra tick).
+  const t20 = makeTicket(20, 150, ["private_event_quote_sent_standard", "private_event_location_indianapolis"], "Stale Anchor");
+  t20.comments.push(comment("Automated follow-up we sent an hour ago...", AGENT_ID, 1));
+  t20.ticket.tags.push("private_event_followup_1_sent");
+  store.set(20, t20);
+
   const zendesk = new InMemoryZendesk(store);
   console.log("Running follow-up sweep against 7 mock tickets...\n");
   const result = await runFollowUpSweep({ zendesk });
@@ -182,6 +192,11 @@ async function main() {
       `ticket ${id} was left Solved by the follow-up sweep - private-event tickets must stay Pending for a human to solve and close`
     );
   }
+
+  assert(
+    sentStages(20).length === 0,
+    "ticket 20 (anchor 150h old, but we emailed it 1h ago) must get NOTHING - the 24h minimum gap stops the whole sequence firing in one afternoon (tickets #29001/#29107, 2026-09-24)"
+  );
 
   console.log("\nAll assertions passed.");
 }

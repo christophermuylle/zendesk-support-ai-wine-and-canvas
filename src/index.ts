@@ -133,5 +133,10 @@ async function sweepOnce() {
   }
 }
 
-sweepOnce();
+// Deliberately NOT running a sweep here on startup. Railway restarts the
+// process on every deploy, so a startup sweep meant each deploy fired
+// another follow-up stage outside the 30-minute pacing - four deploys on
+// 2026-09-24 sent four emails to the same customer inside an hour. The
+// first sweep now happens one interval after boot, and
+// POST /internal/run-follow-up-sweep is still there to trigger one by hand.
 setInterval(sweepOnce, FOLLOW_UP_SWEEP_INTERVAL_MS);
