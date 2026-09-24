@@ -31,7 +31,10 @@ const locations = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
 
 // --- Mock Zendesk: records what would have been posted instead of calling the API ---
 class MockZendeskClient implements IZendeskClient {
-  constructor(private ctx: TicketContext) {}
+  // priorOrderTicketIds simulates other "New order" tickets that already
+  // exist for the same event - what the real pipeline looks up to tell a
+  // private-event deposit from a final balance payment.
+  constructor(private ctx: TicketContext, private priorOrderTicketIds: number[] = []) {}
   async getTicketContext(): Promise<TicketContext> {
     return this.ctx;
   }
@@ -55,8 +58,9 @@ class MockZendeskClient implements IZendeskClient {
       `\n  -> would set status=${opts.status ?? "unchanged"}, tags+=${opts.addTags?.join(",") ?? "-"}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}, no reply`
     );
   }
-  async searchTicketIds(_query: string): Promise<number[]> {
-    return [];
+  async searchTicketIds(query: string): Promise<number[]> {
+    console.log(`\n  -> would search Zendesk: ${query}`);
+    return this.priorOrderTicketIds;
   }
 }
 
@@ -85,7 +89,7 @@ function makeComment(body: string, authorId: number, isPublic = true): ZendeskCo
 
 const CUSTOMER_ID = 1001;
 
-const scenarios: { label: string; ctx: TicketContext }[] = [
+const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: number[] }[] = [
   {
     label: "Simple FAQ (should solve)",
     ctx: {
@@ -363,21 +367,19 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
     },
   },
   {
-    // REGRESSION (order #180710): a real storefront "New order" notification
-    // whose shipping/billing address names an excluded city (Lansing, MI).
-    // out_of_scope_location used to sit ABOVE new_order_confirmation in
-    // config/rules.yaml, so it matched first and the ticket was never
-    // recognised as an order at all - no "Reason for Customer Contacting
-    // Us" field, no solve, just a silent out_of_scope tag. Fixed
-    // 2026-09-24 by moving new_order_confirmation to the top of the rule
-    // list. Expected: matches new_order_confirmation and solves (total > $0).
-    label: "REGRESSION (order #180710): New order naming an excluded city should still be an order confirmation",
+    // REGRESSION (ticket #29324 / order #180826): an ordinary single-seat
+    // purchase whose venue is in an excluded city (Lansing, MI). Real
+    // ticket, confirmed in Zendesk 2026-09-24: out_of_scope_location
+    // matched 3 seconds after it arrived and the ticket was never
+    // recognised as an order at all - no Reason for Contact, no solve,
+    // until a human fixed it by hand an hour later. Expected now: ordinary
+    // Order Confirmation, solved and closed.
+    label: "REGRESSION (#29324): ordinary order at an excluded-city venue should be filed, solved and closed",
     ctx: {
       ticket: {
-        id: 180710,
-        subject: "New order #180710",
-        description:
-          "You have received a new order.\n\nOrder #180710\nCustomer: Test Buyer\nShip to: 123 Main St, Lansing, MI 48933\n\nTotal: $89.00",
+        id: 29324,
+        subject: "[Wine and Canvas - Michigan]: New order #180826",
+        description: "You have received a new order.\n\n[Order #180826] (https://wineandcanvas.com/michigan/wp-admin/post.php?post=180826&action=edit)\n\nProduct Quantity Price\nBirch Forest - LBC 10/4 (#179011-5135-BIRCH-FOREST---LBC-10/4)\nBirch Forest - Paint and Sip at Lansing Brewing Company (https://wineandcanvas.com/michigan/event/birch-forest-paint-and-sip-at-lansing-brewing/)\nLansing Brewing Company\n518 E Shiawassee St\nLansing, MI 48912 United States\n 1  $38.00\n\n| Total: | $38.00 |",
         status: "new",
         requester_id: CUSTOMER_ID,
         tags: [],
@@ -385,9 +387,78 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
         updated_at: new Date().toISOString(),
       },
       requester: { id: CUSTOMER_ID, name: "Test Buyer", email: "buyer@example.com" },
+      comments: [makeComment("You have received a new order.\n\n[Order #180826] (https://wineandcanvas.com/michigan/wp-admin/post.php?post=180826&action=edit)\n\nProduct Quantity Price\nBirch Forest - LBC 10/4 (#179011-5135-BIRCH-FOREST---LBC-10/4)\nBirch Forest - Paint and Sip at Lansing Brewing Company (https://wineandcanvas.com/michigan/event/birch-forest-paint-and-sip-at-lansing-brewing/)\nLansing Brewing Company\n518 E Shiawassee St\nLansing, MI 48912 United States\n 1  $38.00\n\n| Total: | $38.00 |", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // REGRESSION (ticket #29221 / order #180710): the deposit that started
+    // all of this. Real shape, confirmed in Zendesk 2026-09-24 - note it
+    // contains the word "private" NOWHERE (the event is "Okemos Paint
+    // Party"), which is exactly why the deposit is detected from the
+    // PRODUCT line and not from a "private" keyword search. No earlier
+    // order exists for event 180408, so this is the deposit.
+    // Expected: Reason = Private Event Deposit, status Pending, not closed.
+    label: "REGRESSION (order #180710): first payment for an event is a Private Event Deposit, left Pending",
+    priorOrderTicketIds: [],
+    ctx: {
+      ticket: {
+        id: 29221,
+        subject: "[Wine and Canvas - Michigan]: New order #180710",
+        description: "You have received a new order.\n\n[Order #180710] (https://wineandcanvas.com/michigan/wp-admin/post.php?post=180710&action=edit)\n\nProduct Quantity Price\nDeposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)\nOkemos Paint Party (https://wineandcanvas.com/michigan/event/okemos-paint-party/)\nFri, Oct 2nd, 2026 @ 6:00 pm - 8:00 pm\nWine and Canvas - Lansing\nAll Around Town\nLansing, MI 48912 United States\n 1  $58.00\n\n| Total: | $58.00 |",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Alexis Buyer", email: "alexis@example.com" },
+      comments: [makeComment("You have received a new order.\n\n[Order #180710] (https://wineandcanvas.com/michigan/wp-admin/post.php?post=180710&action=edit)\n\nProduct Quantity Price\nDeposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)\nOkemos Paint Party (https://wineandcanvas.com/michigan/event/okemos-paint-party/)\nFri, Oct 2nd, 2026 @ 6:00 pm - 8:00 pm\nWine and Canvas - Lansing\nAll Around Town\nLansing, MI 48912 United States\n 1  $58.00\n\n| Total: | $58.00 |", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // Same event (180408), but an EARLIER order ticket already exists for
+    // it (id 29221 < 29400), so this second payment is the final balance
+    // rather than another deposit. Christopher, 2026-09-24: "First order =
+    // deposit, later = balance."
+    label: "Second payment for the same event should be a Private Event Final Balance, left Pending",
+    priorOrderTicketIds: [29221],
+    ctx: {
+      ticket: {
+        id: 29400,
+        subject: "[Wine and Canvas - Michigan]: New order #180999",
+        description: "You have received a new order.\n\n[Order #180710] (https://wineandcanvas.com/michigan/wp-admin/post.php?post=180710&action=edit)\n\nProduct Quantity Price\nDeposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)\nOkemos Paint Party (https://wineandcanvas.com/michigan/event/okemos-paint-party/)\nFri, Oct 2nd, 2026 @ 6:00 pm - 8:00 pm\nWine and Canvas - Lansing\nAll Around Town\nLansing, MI 48912 United States\n 1  $58.00\n\n| Total: | $58.00 |",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Alexis Buyer", email: "alexis@example.com" },
+      comments: [makeComment("You have received a new order.\n\n[Order #180710] (https://wineandcanvas.com/michigan/wp-admin/post.php?post=180710&action=edit)\n\nProduct Quantity Price\nDeposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)\nOkemos Paint Party (https://wineandcanvas.com/michigan/event/okemos-paint-party/)\nFri, Oct 2nd, 2026 @ 6:00 pm - 8:00 pm\nWine and Canvas - Lansing\nAll Around Town\nLansing, MI 48912 United States\n 1  $58.00\n\n| Total: | $58.00 |", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // A $0 order stays Open for a human, deposit or not - unchanged rule.
+    label: "$0 order should be left Open for a human",
+    ctx: {
+      ticket: {
+        id: 90003,
+        subject: "[Wine and Canvas - Michigan]: New order #180500",
+        description:
+          "You have received a new order.\n\nProduct Quantity Price\nDeposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)\n 1  $0.00\n\n| Total: | $0.00 |",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Zero Buyer", email: "zero@example.com" },
       comments: [
         makeComment(
-          "You have received a new order.\n\nOrder #180710\nCustomer: Test Buyer\nShip to: 123 Main St, Lansing, MI 48933\n\nTotal: $89.00",
+          "You have received a new order.\n\nProduct Quantity Price\nDeposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)\n 1  $0.00\n\n| Total: | $0.00 |",
           CUSTOMER_ID
         ),
       ],
@@ -432,7 +503,7 @@ async function main() {
   const resultsByLabel = new Map<string, Awaited<ReturnType<typeof processTicket>>>();
   for (const scenario of scenarios) {
     console.log(`\n=== ${scenario.label} ===`);
-    const zendesk = new MockZendeskClient(scenario.ctx);
+    const zendesk = new MockZendeskClient(scenario.ctx, scenario.priorOrderTicketIds);
     const result = await processTicket(
       { zendesk, rules, locations, ai, sharedKnowledgeBase, loadLocationSnippet, mode: "draft" },
       scenario.ctx.ticket.id
@@ -489,22 +560,41 @@ async function main() {
       );
     }
   }
-  // --- Regression check for the rule-ordering fix (order #180710, 2026-09-24) ---
-  const orderLabel = "REGRESSION (order #180710): New order naming an excluded city should still be an order confirmation";
-  const orderResult = resultsByLabel.get(orderLabel);
-  if (!orderResult) throw new Error(`ASSERTION FAILED: scenario "${orderLabel}" did not run`);
-  if (orderResult.ruleDecision.matchedRule !== "new_order_confirmation") {
-    throw new Error(
-      `ASSERTION FAILED: order #180710 regression - expected matched rule "new_order_confirmation", got "${orderResult.ruleDecision.matchedRule}". ` +
-        `out_of_scope_location is hijacking order notifications again - check the rule order in config/rules.yaml.`
-    );
+  // --- Regression checks for the order-handling rules (2026-09-24) ---
+  const orderExpectations: Array<[string, string, string]> = [
+    [
+      "REGRESSION (#29324): ordinary order at an excluded-city venue should be filed, solved and closed",
+      "new_order_confirmation",
+      "order_confirmation_solved_and_closed",
+    ],
+    [
+      "REGRESSION (order #180710): first payment for an event is a Private Event Deposit, left Pending",
+      "new_order_confirmation",
+      "private_event_deposit_pending",
+    ],
+    [
+      "Second payment for the same event should be a Private Event Final Balance, left Pending",
+      "new_order_confirmation",
+      "private_event_final_balance_pending",
+    ],
+    ["$0 order should be left Open for a human", "new_order_confirmation", "order_confirmation_left_open"],
+  ];
+  for (const [label, expectedRule, expectedFinal] of orderExpectations) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== expectedRule) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - expected matched rule "${expectedRule}", got "${r.ruleDecision.matchedRule}". ` +
+          `If this is out_of_scope_location, it is hijacking order tickets again - check the rule order in config/rules.yaml.`
+      );
+    }
+    if (r.finalAction !== expectedFinal) {
+      throw new Error(`ASSERTION FAILED: ${label} - expected finalAction "${expectedFinal}", got "${r.finalAction}".`);
+    }
   }
-  if (orderResult.finalAction !== "order_confirmation_solved") {
-    throw new Error(
-      `ASSERTION FAILED: order #180710 regression - expected finalAction "order_confirmation_solved" (total $89.00 > $0), got "${orderResult.finalAction}".`
-    );
-  }
-  console.log("Regression check passed: order notifications from excluded cities are still categorised and solved (#180710).");
+  console.log(
+    "Regression check passed: ordinary orders solve+close, first payment = Private Event Deposit (Pending), second = Final Balance (Pending), $0 stays Open."
+  );
 
   // --- Regression check for the newsletter rule-ordering fix (2026-09-24) ---
   const newsLabel = "REGRESSION: Newsletter Sign Up naming an excluded city should still be filed and closed";

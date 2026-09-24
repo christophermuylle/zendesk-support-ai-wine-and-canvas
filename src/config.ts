@@ -48,6 +48,17 @@ export const ORDER_CONFIRMATION_FIELD_VALUE = process.env.ORDER_CONFIRMATION_FIE
 // suggest, so don't "clean up" this spelling.
 export const NEWSLETTER_SIGNUP_FIELD_VALUE = process.env.NEWSLETTER_SIGNUP_FIELD_VALUE ?? "newsletter_sign_up";
 
+// "Reason for Customer Contacting Us" options for private-event money
+// (Christopher, 2026-09-24). Confirmed against the live field's option
+// list, not guessed: the field offers "Private Event Deposit"
+// (private_event_deposit) and "Private Event Final Balance"
+// (private_event_final_balance). There is no option literally called
+// "Final Payment" - final_balance is that option.
+export const PRIVATE_EVENT_DEPOSIT_FIELD_VALUE =
+  process.env.PRIVATE_EVENT_DEPOSIT_FIELD_VALUE ?? "private_event_deposit";
+export const PRIVATE_EVENT_FINAL_BALANCE_FIELD_VALUE =
+  process.env.PRIVATE_EVENT_FINAL_BALANCE_FIELD_VALUE ?? "private_event_final_balance";
+
 // Independent go-live lever for the private-event quote templates
 // (corporate/standard/fundraiser/kids - see src/private-event-quotes.ts and
 // the "private_event_quote" branch in src/pipeline.ts), separate from the

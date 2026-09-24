@@ -25,11 +25,23 @@
 #   order_confirmation  - for automated "New order" notification tickets, not a
 #                         real support question: no AI call, no reply of any
 #                         kind (draft or auto mode). Sets the "Reason for
-#                         Customer Contacting Us" field to Order Confirmation
-#                         (which also auto-applies the order_confirmation tag),
-#                         then Solves the ticket if the order total is > $0, or
-#                         leaves it Open for a human if it's $0/unparseable. See
-#                         src/pipeline.ts's order_confirmation branch.
+#                         Customer Contacting Us" field (which also
+#                         auto-applies the matching tag) and a status, by
+#                         these three cases (Christopher, 2026-09-24):
+#                           - total $0 or unparseable -> Order Confirmation,
+#                             left Open for a human to check by hand
+#                           - ordinary seat purchase  -> Order Confirmation,
+#                             Solved and then Closed
+#                           - private-event deposit   -> Private Event Deposit
+#                             (first payment for that event) or Private Event
+#                             Final Balance (any later one), left Pending
+#                             because money is still outstanding
+#                         A private-event payment is identified by a PRODUCT
+#                         line named "Deposit ..." - NOT by the word "private"
+#                         appearing in the ticket. See findDepositLineItem in
+#                         src/util.ts for the live-ticket evidence behind that
+#                         choice, and src/pipeline.ts's order_confirmation
+#                         branch for the implementation.
 #
 #   newsletter_signup  - for "<Brand> - <City> Newsletter Sign Up" tickets
 #                         (any city), also not a real support question: no

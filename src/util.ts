@@ -50,3 +50,64 @@ export function isInternalBrandSender(email: string | null | undefined, brandLoc
   const localPart = email.trim().toLowerCase().split("@")[0];
   return localPart.startsWith(brandLocalPartPrefix.toLowerCase());
 }
+
+/**
+ * One product line from a storefront "New order" notification ticket.
+ *
+ * WooCommerce renders each purchased item as a line like:
+ *
+ *   Deposit - Covers 2 Seats (#180408-5135-DEPOSIT---COVERS-2-SEATS-)
+ *   Birch Forest - LBC 10/4 (#179011-5135-BIRCH-FOREST---LBC-10/4)
+ *
+ * The parenthesised SKU always starts "#<event id>-", where <event id> is
+ * the WooCommerce post ID of the EVENT the item belongs to (confirmed
+ * against real tickets 2026-09-24: #29221/order #180710 -> event 180408
+ * "Okemos Paint Party", #29323/order #180816 -> event 180811). That id is
+ * what ties a later balance payment back to the deposit that preceded it.
+ */
+export interface OrderLineItem {
+  /** Product name as shown before the SKU, e.g. "Deposit - Covers 2 Seats". */
+  name: string;
+  /** The event's WooCommerce post ID, e.g. "180408". */
+  eventId: string;
+}
+
+// Matches "<product name> (#<event id>-<rest of sku>)" at the start of a
+// line. The name is captured lazily so it stops at the SKU's opening
+// paren, and the "#<digits>-" shape keeps this from matching the order's
+// own "[Order #180710] (https://...)" link line or the event's
+// "<Event Name> (https://.../event/slug/)" line.
+const ORDER_LINE_ITEM_RE = /^(.+?)\s*\(#(\d+)-[^)\n]*\)/gm;
+
+/**
+ * Every product line in a "New order" notification body, in order.
+ */
+export function extractOrderLineItems(text: string): OrderLineItem[] {
+  const items: OrderLineItem[] = [];
+  const re = new RegExp(ORDER_LINE_ITEM_RE.source, ORDER_LINE_ITEM_RE.flags);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text ?? "")) !== null) {
+    items.push({ name: m[1].trim(), eventId: m[2] });
+  }
+  return items;
+}
+
+/**
+ * The first product line that is a private-event deposit/balance payment
+ * rather than an ordinary seat purchase, or null if the order has none.
+ *
+ * Christopher, 2026-09-24, on how to spot private-event money: the
+ * PRODUCT is the signal, not the event name. Checked against live data
+ * before this was written - searching the word "private" anywhere in the
+ * ticket matches 128 order tickets, nearly all of them ordinary $39
+ * single-seat sales at events that merely have "Private" in their title
+ * ("Private Painting Party- Upland Brewing", "Barrett's 9th Birthday
+ * Private Party"). Worse, it MISSES the real case: order #180710, the
+ * deposit that started this, is for "Okemos Paint Party" and contains the
+ * word "private" nowhere at all. The 57 genuine deposit orders all name
+ * the product "Deposit - 2 seats" / "Deposit (Covers 4 Seats)" / similar,
+ * so that is what this matches.
+ */
+export function findDepositLineItem(text: string): OrderLineItem | null {
+  return extractOrderLineItems(text).find((i) => /\bdeposit\b/i.test(i.name)) ?? null;
+}

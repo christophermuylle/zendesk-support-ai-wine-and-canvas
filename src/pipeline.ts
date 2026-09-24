@@ -13,13 +13,15 @@ import {
   ORDER_CONFIRMATION_FIELD_ID,
   ORDER_CONFIRMATION_FIELD_VALUE,
   NEWSLETTER_SIGNUP_FIELD_VALUE,
+  PRIVATE_EVENT_DEPOSIT_FIELD_VALUE,
+  PRIVATE_EVENT_FINAL_BALANCE_FIELD_VALUE,
   PRIVATE_EVENT_QUOTES_LIVE,
   PRIVATE_EVENT_QUOTE_SENT_TAG,
   PRIVATE_EVENT_LOCATION_TAG_PREFIX,
   PRIVATE_EVENT_INTERNAL_SENDER_PREFIX,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
-import { extractOrderTotal, isInternalBrandSender } from "./util.js";
+import { findDepositLineItem, extractOrderTotal, isInternalBrandSender } from "./util.js";
 import {
   classifyPrivateEvent,
   resolvePrivateEventLocationKey,
@@ -44,8 +46,10 @@ export interface PipelineResult {
     | "posted_public_reply"
     | "posted_internal_note"
     | "skipped_out_of_scope"
-    | "order_confirmation_solved"
+    | "order_confirmation_solved_and_closed"
     | "order_confirmation_left_open"
+    | "private_event_deposit_pending"
+    | "private_event_final_balance_pending"
     | "newsletter_signup_solved_and_closed"
     | "private_event_needs_location"
     | "no_op";
@@ -83,6 +87,29 @@ function buildKnowledgeBase(deps: PipelineDeps, ctx: TicketContext): { text: str
   return { text, locationDisplayName: match.displayName };
 }
 
+/**
+ * True when an EARLIER "New order" ticket already exists for this event -
+ * i.e. this order is a follow-up payment (the final balance) rather than
+ * the first one (the deposit). See the order_confirmation branch below for
+ * why ticket id ordering stands in for "earlier".
+ *
+ * Fails safe: if the search errors out we treat the order as the deposit,
+ * because wrongly filing a first payment as a "Final Balance" would tell
+ * Bonnie an event is fully paid when it isn't.
+ */
+async function hasEarlierOrderForEvent(
+  deps: PipelineDeps,
+  ticketId: number,
+  eventId: string
+): Promise<boolean> {
+  try {
+    const ids = await deps.zendesk.searchTicketIds(`type:ticket "New order" "${eventId}"`);
+    return ids.some((id) => id < ticketId);
+  } catch {
+    return false;
+  }
+}
+
 export async function processTicket(deps: PipelineDeps, ticketId: number): Promise<PipelineResult> {
   const ctx: TicketContext = await deps.zendesk.getTicketContext(ticketId);
 
@@ -109,26 +136,88 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     return { ticketId, ruleDecision, matchedLocation: null, finalAction: "skipped_out_of_scope", mode: deps.mode };
   }
 
-  // "order_confirmation" is a purely mechanical rule for automated "New
-  // order" notification tickets from the storefront - it's not a real
-  // support question, so no AI draft and no reply/comment of any kind, in
-  // draft mode or auto mode alike. We just categorize the ticket (which
-  // also auto-applies Zendesk's "order_confirmation" tag via the tagger
-  // field) and close it - UNLESS the order total is $0 or unparseable, in
-  // which case it's left Open for a human to check by hand.
+  // "order_confirmation" - automated "New order" notification tickets from
+  // the storefront. Not a real support question, so no AI draft and no
+  // reply/comment of any kind, in draft mode or auto mode alike. Three
+  // outcomes, per Christopher 2026-09-24 ("None are out of scope"):
+  //
+  //   total $0 / unparseable -> left Open for a human to check by hand
+  //   ordinary seat purchase -> Order Confirmation, Solved, then Closed
+  //   private-event deposit  -> Private Event Deposit OR Private Event
+  //                             Final Balance, and left Pending
+  //
+  // "Private" as a keyword is deliberately NOT what picks the private
+  // branch - see findDepositLineItem in src/util.ts for the live-data
+  // reason (it both over-matches ordinary seat sales and misses the real
+  // deposits). The product line naming a Deposit is the signal.
   if (ruleDecision.action === "order_confirmation") {
-    const total = extractOrderTotal(ctx.ticket.description ?? "");
-    const status: ZendeskStatus = total !== null && total > 0 ? "solved" : "open";
+    const description = ctx.ticket.description ?? "";
+    const total = extractOrderTotal(description);
+
+    // $0 or unparseable: something is off with the order, so a human looks
+    // at it. Unchanged from the original behaviour.
+    if (total === null || total <= 0) {
+      await deps.zendesk.updateTicket(ticketId, {
+        status: "open",
+        addTags: ruleDecision.addTags,
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: ORDER_CONFIRMATION_FIELD_VALUE }],
+      });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: null,
+        finalAction: "order_confirmation_left_open",
+        mode: deps.mode,
+      };
+    }
+
+    const deposit = findDepositLineItem(description);
+
+    // Ordinary order: file it and shut it. Solved and Closed are applied
+    // as two sequential updates so the ticket passes through Solved on the
+    // way to Closed, matching Zendesk's normal status flow (same approach
+    // as the newsletter_signup branch below).
+    if (!deposit) {
+      await deps.zendesk.updateTicket(ticketId, {
+        status: "solved",
+        addTags: ruleDecision.addTags,
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: ORDER_CONFIRMATION_FIELD_VALUE }],
+      });
+      await deps.zendesk.updateTicket(ticketId, { status: "closed" });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: null,
+        finalAction: "order_confirmation_solved_and_closed",
+        mode: deps.mode,
+      };
+    }
+
+    // Private-event money. Christopher's rule for telling the two apart
+    // (2026-09-24): the FIRST order for a given event is the deposit, any
+    // later one is the final balance. "Same event" is the WooCommerce
+    // event id embedded in the product's SKU, which is stable across both
+    // payments; Zendesk ticket ids increase over time, so an existing
+    // order ticket for this event with a LOWER id means a payment already
+    // came in before this one.
+    //
+    // Left Pending, not Solved: money is still outstanding on a deposit,
+    // and Pending is what tells Bonnie the ticket is waiting on the
+    // customer. Nothing here closes the ticket.
+    const alreadyPaidOnce = await hasEarlierOrderForEvent(deps, ticketId, deposit.eventId);
+    const fieldValue = alreadyPaidOnce
+      ? PRIVATE_EVENT_FINAL_BALANCE_FIELD_VALUE
+      : PRIVATE_EVENT_DEPOSIT_FIELD_VALUE;
     await deps.zendesk.updateTicket(ticketId, {
-      status,
+      status: "pending",
       addTags: ruleDecision.addTags,
-      fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: ORDER_CONFIRMATION_FIELD_VALUE }],
+      fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: fieldValue }],
     });
     return {
       ticketId,
       ruleDecision,
       matchedLocation: null,
-      finalAction: status === "solved" ? "order_confirmation_solved" : "order_confirmation_left_open",
+      finalAction: alreadyPaidOnce ? "private_event_final_balance_pending" : "private_event_deposit_pending",
       mode: deps.mode,
     };
   }
