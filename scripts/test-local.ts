@@ -362,6 +362,38 @@ const scenarios: { label: string; ctx: TicketContext }[] = [
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (order #180710): a real storefront "New order" notification
+    // whose shipping/billing address names an excluded city (Lansing, MI).
+    // out_of_scope_location used to sit ABOVE new_order_confirmation in
+    // config/rules.yaml, so it matched first and the ticket was never
+    // recognised as an order at all - no "Reason for Customer Contacting
+    // Us" field, no solve, just a silent out_of_scope tag. Fixed
+    // 2026-09-24 by moving new_order_confirmation to the top of the rule
+    // list. Expected: matches new_order_confirmation and solves (total > $0).
+    label: "REGRESSION (order #180710): New order naming an excluded city should still be an order confirmation",
+    ctx: {
+      ticket: {
+        id: 180710,
+        subject: "New order #180710",
+        description:
+          "You have received a new order.\n\nOrder #180710\nCustomer: Test Buyer\nShip to: 123 Main St, Lansing, MI 48933\n\nTotal: $89.00",
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Test Buyer", email: "buyer@example.com" },
+      comments: [
+        makeComment(
+          "You have received a new order.\n\nOrder #180710\nCustomer: Test Buyer\nShip to: 123 Main St, Lansing, MI 48933\n\nTotal: $89.00",
+          CUSTOMER_ID
+        ),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -433,6 +465,23 @@ async function main() {
       );
     }
   }
+  // --- Regression check for the rule-ordering fix (order #180710, 2026-09-24) ---
+  const orderLabel = "REGRESSION (order #180710): New order naming an excluded city should still be an order confirmation";
+  const orderResult = resultsByLabel.get(orderLabel);
+  if (!orderResult) throw new Error(`ASSERTION FAILED: scenario "${orderLabel}" did not run`);
+  if (orderResult.ruleDecision.matchedRule !== "new_order_confirmation") {
+    throw new Error(
+      `ASSERTION FAILED: order #180710 regression - expected matched rule "new_order_confirmation", got "${orderResult.ruleDecision.matchedRule}". ` +
+        `out_of_scope_location is hijacking order notifications again - check the rule order in config/rules.yaml.`
+    );
+  }
+  if (orderResult.finalAction !== "order_confirmation_solved") {
+    throw new Error(
+      `ASSERTION FAILED: order #180710 regression - expected finalAction "order_confirmation_solved" (total $89.00 > $0), got "${orderResult.finalAction}".`
+    );
+  }
+  console.log("Regression check passed: order notifications from excluded cities are still categorised and solved (#180710).");
+
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }
 

@@ -62,6 +62,29 @@
 # ---------------------------------------------------------------------------
 
 rules:
+  # Automated "New order" notification tickets from the storefront - these
+  # are order receipts Zendesk turns into tickets, not a real customer
+  # question, so this is matched FIRST, ahead of the out-of-scope location
+  # check (Christopher's rule, same as Painting and Vino: "Tickets
+  # with 'New order' in the subject line or in the description should be
+  # set to 'Order Confirmation' and status set to 'solved' only if the
+  # order total is greater than $0. If it is $0 leave it open... to
+  # handle." - no AI reply draft). See action doc above.
+  #
+  # Christopher, 2026-09-24: MOVED to the top of the list, above
+  # out_of_scope_location. Order #180710 was a real storefront order that
+  # named an excluded city (Lansing, MI) in the body, so
+  # out_of_scope_location matched first and the ticket was never
+  # recognised as an order at all - no "Reason for Customer Contacting
+  # Us" field, no solve. Order receipts are mechanical (no AI call, no
+  # reply of any kind), so running them before the location check cannot
+  # "respond to" an excluded city's ticket - it only files the receipt.
+  - name: new_order_confirmation
+    match:
+      any_keywords: ["new order"]
+    action: order_confirmation
+    force_human_review: false
+
   # Wine and Canvas locations that run their OWN customer support - never
   # respond to, tag, or touch tickets for these. Bonnie/Amber only handle a
   # subset of locations; everything else stays hands-off.
@@ -115,20 +138,6 @@ rules:
     action: no_action
     force_human_review: false
     add_tags: ["out_of_scope_location"]
-
-  # Automated "New order" notification tickets from the storefront - these
-  # are order receipts Zendesk turns into tickets, not a real customer
-  # question, so this is matched and handled right after the out-of-scope
-  # location check (Christopher's rule, same as Painting and Vino: "Tickets
-  # with 'New order' in the subject line or in the description should be
-  # set to 'Order Confirmation' and status set to 'solved' only if the
-  # order total is greater than $0. If it is $0 leave it open... to
-  # handle." - no AI reply draft). See action doc above.
-  - name: new_order_confirmation
-    match:
-      any_keywords: ["new order"]
-    action: order_confirmation
-    force_human_review: false
 
   # "<Brand> - <City> Newsletter Sign Up" tickets from each city's newsletter
   # signup form (e.g. https://wineandcanvas.com/indianapolis) - confirmed
