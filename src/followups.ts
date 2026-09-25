@@ -173,8 +173,24 @@ async function processCandidate(
   // The quote itself - see file header note on why "first public comment
   // NOT from the requester" is used as the anchor.
   const outbound = ctx.comments.filter((c) => c.public && c.author_id !== ctx.ticket.requester_id);
-  const quoteComment = outbound[0];
-  if (!quoteComment) return { outcome: "skipped_not_eligible" }; // shouldn't happen - we only tag after posting one
+  if (!outbound.length) return { outcome: "skipped_not_eligible" }; // shouldn't happen - we only tag after posting one
+
+  // The anchor is the QUOTE, not simply our first outbound message.
+  // Since 2026-09-25 a ticket may have had a clarifying question sent
+  // BEFORE the quote (focus or location unknown - see
+  // src/private-event-clarifiers.ts), and anchoring on that would start
+  // the 24h/72h/120h clock while the customer was still being asked what
+  // their event even is.
+  //
+  // Each follow-up we send is itself one outbound comment, so counting
+  // back from the end by the number of stages already sent lands on the
+  // quote. If a human has also replied publicly in between, this lands on
+  // something NEWER than the quote, which delays the next follow-up rather
+  // than firing it early - the safe direction to be wrong in.
+  const stagesAlreadySent = [FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG, FOLLOW_UP_3_SENT_TAG].filter((t) =>
+    tags.includes(t)
+  ).length;
+  const quoteComment = outbound[outbound.length - 1 - stagesAlreadySent] ?? outbound[0];
 
   const threshold = stage === 1 ? HOURS_STAGE_1 : stage === 2 ? HOURS_STAGE_2 : HOURS_STAGE_3;
   if (hoursSince(quoteComment.created_at) < threshold) return { outcome: "skipped_not_due" };

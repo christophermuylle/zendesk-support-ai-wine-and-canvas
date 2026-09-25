@@ -489,6 +489,85 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // The ordinary Wine and Canvas contact-form request: the form has NO
+    // occasion field, so location is known but focus is not. Christopher,
+    // 2026-09-25 - ask rather than send the general quote. Real tickets
+    // #29383 and #29310 are this exact shape.
+    label: "Contact-form request with a known city but no stated occasion should ask what the focus is",
+    ctx: {
+      ticket: {
+        id: 90200, subject: "Party Request from Dana Unknown",
+        description: "Party Request from Wine & Canvas\n\nName: Dana Unknown\nEmail: dana@example.com\nPhone: 3175550142\nPreferred Date: 2026-11-14\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Indianapolis, IN\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Dana Unknown", email: "dana@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Dana Unknown\nEmail: dana@example.com\nPhone: 3175550142\nPreferred Date: 2026-11-14\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Indianapolis, IN\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // Ticket #29391's shape: the location dropdown's literal "unsure"
+    // value, and no occasion either - both questions at once.
+    label: "Contact-form request with Location: unsure and no occasion should ask both questions",
+    ctx: {
+      ticket: {
+        id: 90201, subject: "Party Request from Pat Nowhere",
+        description: "Party Request from Wine & Canvas\n\nName: Pat Nowhere\nEmail: pat@example.com\nPhone: 3175550199\nPreferred Date: 2026-11-20\nPreferred Time: 7:00 PM\nGuests: 14\nLocation: unsure\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Pat Nowhere", email: "pat@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Pat Nowhere\nEmail: pat@example.com\nPhone: 3175550199\nPreferred Date: 2026-11-20\nPreferred Time: 7:00 PM\nGuests: 14\nLocation: unsure\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // Already asked, reply still says nothing - hand to a human rather
+    // than asking a second time.
+    label: "Clarifier already sent and the reply is still unclear - should go to a human, not ask again",
+    ctx: {
+      ticket: {
+        id: 90202, subject: "Party Request from Vague Vera",
+        description: "Party Request from Wine & Canvas\n\nName: Dana Unknown\nEmail: dana@example.com\nPhone: 3175550142\nPreferred Date: 2026-11-14\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Indianapolis, IN\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "pending", requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_clarification_sent"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Vague Vera", email: "vera@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Dana Unknown\nEmail: dana@example.com\nPhone: 3175550142\nPreferred Date: 2026-11-14\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Indianapolis, IN\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID),
+        makeComment("[clarifying question already sent here]", 999),
+        makeComment("Sounds good, let me know!", CUSTOMER_ID),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // The other half of the loop: we asked, and they told us. The reply
+    // ("team building for our office") is what classifies the ticket, so
+    // the proper Corporate quote goes out rather than the general one.
+    // With PRIVATE_EVENT_QUOTES_LIVE off here it is held as an internal
+    // note, same as any other quote in draft mode.
+    label: "Customer answers the clarifying question - should now quote properly",
+    ctx: {
+      ticket: {
+        id: 90203, subject: "Party Request from Dana Unknown",
+        description: "Party Request from Wine & Canvas\n\nName: Dana Unknown\nEmail: dana@example.com\nPhone: 3175550142\nPreferred Date: 2026-11-14\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Indianapolis, IN\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "pending", requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_clarification_sent"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Dana Unknown", email: "dana@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Dana Unknown\nEmail: dana@example.com\nPhone: 3175550142\nPreferred Date: 2026-11-14\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Indianapolis, IN\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID),
+        makeComment("[clarifying question already sent here]", 999),
+        makeComment("It's a team building event for our office, in Indianapolis.", CUSTOMER_ID),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -612,6 +691,35 @@ async function main() {
     );
   }
   console.log("Regression check passed: newsletter signups from excluded cities are still filed and closed.");
+
+  // --- Clarifier checks (Christopher, 2026-09-25) ---
+  // NOTE: with PRIVATE_EVENT_QUOTES_LIVE off in this test environment the
+  // clarifier is held as an internal note rather than sent, exactly like
+  // the quote itself - so the expected finalAction here is
+  // posted_internal_note. What these assert is that the pipeline REACHED
+  // the clarifier branch instead of quoting a guess.
+  const clarifierCases: Array<[string, string]> = [
+    ["Contact-form request with a known city but no stated occasion should ask what the focus is", "event_booking_question"],
+    ["Contact-form request with Location: unsure and no occasion should ask both questions", "event_booking_question"],
+    // The customer's own reply no longer carries the contact-form phrase
+    // event_booking_question requires, so it is the tag-matched
+    // private_event_clarification_reply rule that routes it back into the
+    // private-event branch. Without that rule the answer we asked for
+    // would fall through to a generic FAQ rule.
+    ["Clarifier already sent and the reply is still unclear - should go to a human, not ask again", "private_event_clarification_reply"],
+    ["Customer answers the clarifying question - should now quote properly", "private_event_clarification_reply"],
+  ];
+  for (const [label, expectedRule] of clarifierCases) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.finalAction !== "posted_internal_note") {
+      throw new Error(`ASSERTION FAILED: ${label} - expected finalAction "posted_internal_note", got "${r.finalAction}".`);
+    }
+    if (r.ruleDecision.matchedRule !== expectedRule) {
+      throw new Error(`ASSERTION FAILED: ${label} - expected matched rule "${expectedRule}", got "${r.ruleDecision.matchedRule}".`);
+    }
+  }
+  console.log("Regression check passed: inquiries with an unknown focus or location get a clarifying question instead of a guessed quote, and we never ask twice.");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }

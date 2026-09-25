@@ -206,6 +206,26 @@ rules:
     force_human_review: false
     add_tags: ["promo_code_question"]
 
+  # The customer's ANSWER to a clarifying question we sent (focus and/or
+  # location unknown - see src/private-event-clarifiers.ts). Matched by tag
+  # for the same reason as private_event_reply_after_quote_sent below: the
+  # reply is short ("it's a work thing, Indianapolis") and does not contain
+  # the "Party Request from Wine & Canvas" contact-form phrase that
+  # event_booking_question requires, so without this rule the answer we
+  # just asked for would fall through to a generic FAQ rule and never reach
+  # the quote branch at all.
+  #
+  # Routes to the same private_event_quote action, where the reply is
+  # re-classified with the new information and either quoted properly or -
+  # if it is STILL unclear - handed to a human rather than asked twice.
+  # Christopher, 2026-09-25.
+  - name: private_event_clarification_reply
+    match:
+      tags: ["private_event_clarification_sent"]
+    action: private_event_quote
+    force_human_review: false
+    add_tags: ["booking_question"]
+
   - name: private_event_reply_after_quote_sent
     match:
       # Placed ahead of event_booking_question (and its new

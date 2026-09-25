@@ -91,6 +91,19 @@ export const PRIVATE_EVENT_INTERNAL_SENDER_PREFIX = "wineandcanvas";
 // naming convention Painting and Vino's config.ts uses for its own
 // (single-pool) version of this sequence.
 export const PRIVATE_EVENT_QUOTE_SENT_TAG = "private_event_quote_sent";
+
+// Stamped when we send a clarifying first response (focus and/or location
+// unknown). Its only job is to make sure we ask ONCE: if the customer's
+// reply still doesn't tell us, the ticket goes to a human rather than
+// getting a second round of questions. Christopher, 2026-09-25.
+export const PRIVATE_EVENT_CLARIFICATION_SENT_TAG = "private_event_clarification_sent";
+
+// "Reason for Customer Contacting Us" option for private-event inquiries.
+// Christopher, 2026-09-25: "Reason for contacting us should be Private
+// Event for Wine and Canvas. Painting and Vino is already set up." Value
+// confirmed against the live field's option list ("Private Events") and
+// against ticket #29001, where it was set by hand.
+export const PRIVATE_EVENT_FIELD_VALUE = process.env.PRIVATE_EVENT_FIELD_VALUE ?? "private_events";
 export const PRIVATE_EVENT_LOCATION_TAG_PREFIX = "private_event_location_";
 export const FOLLOW_UP_1_SENT_TAG = "private_event_followup_1_sent";
 export const FOLLOW_UP_2_SENT_TAG = "private_event_followup_2_sent";

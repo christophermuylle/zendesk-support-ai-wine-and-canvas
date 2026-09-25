@@ -80,7 +80,62 @@ export function mentionsGiftDonation(ctx: TicketContext): boolean {
   return text.includes("donat"); // catches donate/donation/donating, same plain-substring convention as the rest of this codebase
 }
 
-export function classifyPrivateEvent(ctx: TicketContext): PrivateEventCategory {
+// Adult celebration and community signals - what makes an inquiry
+// genuinely "standard" rather than merely unclassified. Added 2026-09-25
+// so the classifier can tell those two apart; see the null return below.
+const STANDARD_KEYWORDS = [
+  "hoa",
+  "homeowners association",
+  "homeowner's association",
+  "condo association",
+  "condominium association",
+  "neighborhood",
+  "neighbourhood",
+  "residents",
+  "community event",
+  "community group",
+  "church group",
+  "book club",
+  "birthday",
+  "bachelorette",
+  "bachelor party",
+  "bridal shower",
+  "baby shower",
+  "anniversary",
+  "girls night",
+  "girls' night",
+  "girl's night",
+  "ladies night",
+  "celebration",
+  "celebrating",
+  "get together",
+  "get-together",
+  "reunion",
+  "retirement",
+  "graduation",
+  "holiday party",
+  "christmas party",
+  "date night",
+  "couples",
+  "friends",
+  "family",
+];
+
+/**
+ * The event's focus, or null when the inquiry doesn't say.
+ *
+ * Christopher, 2026-09-25: "I noticed a couple Corporate Team building
+ * parties were sent the general response because it was not clear what the
+ * focus of the party was." This used to end in `return "standard"`, so an
+ * inquiry that said nothing about its occasion was indistinguishable from
+ * one that genuinely was a standard adult party.
+ *
+ * That matters more on this brand than on Painting and Vino: the Wine and
+ * Canvas contact form has no occasion field at all, so most inquiries
+ * arrive with nothing to classify on. Returning null lets the pipeline ask
+ * rather than guess - see src/private-event-clarifiers.ts.
+ */
+export function classifyPrivateEvent(ctx: TicketContext): PrivateEventCategory | null {
   const text = getTicketMatchText(ctx);
 
   if (KIDS_KEYWORDS.some((k) => text.includes(k)) || KIDS_AGE_PATTERN.test(text)) {
@@ -92,7 +147,10 @@ export function classifyPrivateEvent(ctx: TicketContext): PrivateEventCategory {
   if (CORPORATE_KEYWORDS.some((k) => text.includes(k))) {
     return "corporate";
   }
-  return "standard";
+  if (STANDARD_KEYWORDS.some((k) => text.includes(k))) {
+    return "standard";
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

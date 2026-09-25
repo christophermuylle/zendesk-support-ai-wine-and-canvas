@@ -25,7 +25,7 @@ export interface IZendeskClient {
   postComment(
     ticketId: number,
     body: string,
-    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[] }
+    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[]; fields?: Array<{ id: number; value: string | null }> }
   ): Promise<void>;
   /** Update status, tags, and/or custom fields WITHOUT posting a comment (used for out-of-scope tickets and rule-driven field updates like order confirmations). */
   updateTicket(
@@ -132,7 +132,7 @@ export class ZendeskClient implements IZendeskClient {
   async postComment(
     ticketId: number,
     body: string,
-    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[] }
+    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[]; fields?: Array<{ id: number; value: string | null }> }
   ): Promise<void> {
     const statusMap: Record<string, string> = { solve: "solved", pending: "pending", escalate: "open" };
     // When htmlBody is set, send html_body instead of the plain body so
@@ -154,6 +154,13 @@ export class ZendeskClient implements IZendeskClient {
     }
     if (opts.addTags?.length) {
       ticket.tags = await this.mergeTags(ticketId, opts.addTags);
+    }
+    // Custom ticket fields (e.g. "Reason for Customer Contacting Us") set
+    // in the same PUT as the comment, so a reply and its categorisation
+    // land as one ticket update rather than two. Added 2026-09-25 for
+    // private-event inquiries; updateTicket below already took these.
+    if (opts.fields?.length) {
+      ticket.fields = opts.fields;
     }
     await this.request(`/tickets/${ticketId}.json`, {
       method: "PUT",

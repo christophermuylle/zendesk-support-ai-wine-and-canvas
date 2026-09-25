@@ -17,6 +17,8 @@ import {
   PRIVATE_EVENT_FINAL_BALANCE_FIELD_VALUE,
   PRIVATE_EVENT_QUOTES_LIVE,
   PRIVATE_EVENT_QUOTE_SENT_TAG,
+  PRIVATE_EVENT_CLARIFICATION_SENT_TAG,
+  PRIVATE_EVENT_FIELD_VALUE,
   PRIVATE_EVENT_LOCATION_TAG_PREFIX,
   PRIVATE_EVENT_INTERNAL_SENDER_PREFIX,
 } from "./config.js";
@@ -32,6 +34,7 @@ import {
   type PrivateEventCategory,
   type PrivateEventLocationKey,
 } from "./private-event-quotes.js";
+import { renderClarifier, type ClarifierKind } from "./private-event-clarifiers.js";
 
 export interface PipelineResult {
   ticketId: number;
@@ -52,6 +55,7 @@ export interface PipelineResult {
     | "private_event_final_balance_pending"
     | "newsletter_signup_solved_and_closed"
     | "private_event_needs_location"
+    | "private_event_clarification_sent"
     | "no_op";
   mode: Mode;
 }
@@ -326,15 +330,17 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
 
     const location = deps.locations.resolve(ctx);
     const locationKey = location ? resolvePrivateEventLocationKey(ctx, location.slug) : null;
+    const category = classifyPrivateEvent(ctx);
 
-    if (!location || !locationKey) {
+    // A location we matched but have no private-event pricing for is NOT
+    // something the customer can clear up - they already told us where
+    // they are. That still goes straight to a human.
+    if (location && !locationKey) {
       const note = [
         `[PRIVATE EVENT QUOTE - needs human]`,
         `Matched rule: ${ruleDecision.matchedRule}`,
         ``,
-        `Could not determine which city this private-event inquiry is for` +
-          (location ? ` (matched "${location.displayName}", but that location isn't in the private-event pricing table yet)` : "") +
-          `, so no quote was generated. A human needs to confirm the location before sending pricing.`,
+        `Matched "${location.displayName}", but that location isn't in the private-event pricing table yet, so no quote was generated. A human needs to confirm the location before sending pricing.`,
       ].join("\n");
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
@@ -343,22 +349,103 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       return {
         ticketId,
         ruleDecision,
-        matchedLocation: location?.displayName ?? null,
+        matchedLocation: location.displayName,
         finalAction: "private_event_needs_location",
         mode: deps.mode,
       };
     }
 
-    const category: PrivateEventCategory = classifyPrivateEvent(ctx);
+    // Christopher, 2026-09-25: when we can't tell the event's FOCUS or its
+    // LOCATION, ask instead of guessing. On this brand that is the common
+    // case, because the contact form has no occasion field - see
+    // src/private-event-clarifiers.ts.
+    const needsFocus = category === null;
+    const needsLocation = !locationKey;
+
+    if (needsFocus || needsLocation) {
+      // Ask once and only once. If they answered and it's STILL not clear,
+      // a second round of questions would read as badgering - hand it to a
+      // human instead.
+      if (ctx.ticket.tags.includes(PRIVATE_EVENT_CLARIFICATION_SENT_TAG)) {
+        const missing = [needsFocus ? "focus" : null, needsLocation ? "location" : null].filter(Boolean).join(" and ");
+        const note = [
+          `[PRIVATE EVENT - still unclear after asking]`,
+          `Matched rule: ${ruleDecision.matchedRule}`,
+          ``,
+          `We already asked this customer to confirm the ${missing} of their event and their reply still doesn't make it clear, so no quote has been sent. Please read the thread and reply by hand rather than sending another round of questions.`,
+        ].join("\n");
+        await deps.zendesk.postComment(ticketId, note, {
+          isPublic: false,
+          addTags: ["needs_human", "private_event_still_unclear"],
+        });
+        return {
+          ticketId,
+          ruleDecision,
+          matchedLocation: location?.displayName ?? null,
+          finalAction: "posted_internal_note",
+          mode: deps.mode,
+        };
+      }
+
+      const kind: ClarifierKind = needsFocus && needsLocation ? "both" : needsFocus ? "focus" : "location";
+      const clarifier = renderClarifier(ctx, kind);
+
+      // Same pacing gate as the quote itself (Christopher, 2026-09-21:
+      // "Until we load all templates, keep it to draft mode. Once I have
+      // everything sent to you, I will let you know to go live."). A
+      // clarifying question is still an email to a customer, so it must
+      // not slip out while the private-event system is in draft.
+      if (!PRIVATE_EVENT_QUOTES_LIVE) {
+        const note = [
+          `[PRIVATE EVENT - clarifying question needed, NOT sent]`,
+          `Matched rule: ${ruleDecision.matchedRule}`,
+          `Unclear: ${[needsFocus ? "focus" : null, needsLocation ? "location" : null].filter(Boolean).join(" and ")}`,
+          `PRIVATE_EVENT_QUOTES_LIVE is off, so this was not sent - a human should review and send it manually.`,
+          ``,
+          clarifier.plainBody,
+        ].join("\n");
+        await deps.zendesk.postComment(ticketId, note, {
+          isPublic: false,
+          addTags: [...(ruleDecision.addTags ?? []), "ai_draft_pending_review", "private_event_clarification_pending"],
+        });
+        return {
+          ticketId,
+          ruleDecision,
+          matchedLocation: location?.displayName ?? null,
+          finalAction: "posted_internal_note",
+          mode: deps.mode,
+        };
+      }
+
+      await deps.zendesk.postComment(ticketId, clarifier.plainBody, {
+        isPublic: true,
+        // Pending, not solved - we're waiting on the customer's answer.
+        // Deliberately does NOT get PRIVATE_EVENT_QUOTE_SENT_TAG: no quote
+        // has gone out, so the 24h/72h/120h follow-up sequence must not
+        // start yet.
+        status: "pending",
+        htmlBody: clarifier.htmlBody,
+        addTags: [...(ruleDecision.addTags ?? []), PRIVATE_EVENT_CLARIFICATION_SENT_TAG],
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
+      });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: location?.displayName ?? null,
+        finalAction: "private_event_clarification_sent",
+        mode: deps.mode,
+      };
+    }
+
     const quote: RenderedQuote = renderPrivateEventQuote(ctx, category, locationKey);
 
     if (!PRIVATE_EVENT_QUOTES_LIVE) {
-      const note = formatPrivateEventInternalNote(ruleDecision, category, location.displayName, quote);
+      const note = formatPrivateEventInternalNote(ruleDecision, category, location!.displayName, quote);
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
         addTags: [...(ruleDecision.addTags ?? []), "ai_draft_pending_review", `private_event_${category}`],
       });
-      return { ticketId, ruleDecision, matchedLocation: location.displayName, finalAction: "posted_internal_note", mode: deps.mode };
+      return { ticketId, ruleDecision, matchedLocation: location!.displayName, finalAction: "posted_internal_note", mode: deps.mode };
     }
 
     // Live: upload each embedded photo (see quote.imageAssets), splice the
@@ -378,6 +465,9 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       status: "pending", // waiting on the customer to confirm a date, not "solved" - lets the follow-up sequence pick it up
       htmlBody,
       uploadTokens,
+      // Christopher, 2026-09-25: "Reason for contacting us should be
+      // Private Event for Wine and Canvas."
+      fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
       addTags: [
         ...(ruleDecision.addTags ?? []),
         `private_event_${category}`,
@@ -394,7 +484,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
         `${PRIVATE_EVENT_LOCATION_TAG_PREFIX}${locationKey}`,
       ],
     });
-    return { ticketId, ruleDecision, matchedLocation: location.displayName, finalAction: "posted_public_reply", mode: deps.mode };
+    return { ticketId, ruleDecision, matchedLocation: location!.displayName, finalAction: "posted_public_reply", mode: deps.mode };
   }
 
   const { text: knowledgeBase, locationDisplayName } = buildKnowledgeBase(deps, ctx);
