@@ -30,6 +30,13 @@ const rules = new RulesEngine(path.join(CONFIG_DIR, "rules.yaml"));
 const locations = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
 
 // --- Mock Zendesk: records what would have been posted instead of calling the API ---
+// Every custom ticket field the pipeline set via postComment, by ticket.
+// Used to assert that private-event tickets get "Reason for Customer
+// Contacting Us" on EVERY path, including the ones that hand off to a
+// human - Christopher, 2026-09-28, after finding tickets quoted days
+// earlier with the field still blank.
+const fieldsSetByTicket = new Map<number, Array<{ id: number; value: string | null }>>();
+
 class MockZendeskClient implements IZendeskClient {
   // priorOrderTicketIds simulates other "New order" tickets that already
   // exist for the same event - what the real pipeline looks up to tell a
@@ -41,9 +48,19 @@ class MockZendeskClient implements IZendeskClient {
   async postComment(
     ticketId: number,
     body: string,
-    opts: { isPublic: boolean; status?: ActionType; addTags?: string[]; htmlBody?: string; uploadTokens?: string[] }
+    opts: {
+      isPublic: boolean;
+      status?: ActionType;
+      addTags?: string[];
+      htmlBody?: string;
+      uploadTokens?: string[];
+      fields?: Array<{ id: number; value: string | null }>;
+    }
   ): Promise<void> {
-    console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}, htmlBody=${opts.htmlBody ? "yes" : "no"}, uploads=${opts.uploadTokens?.length ?? 0}):`);
+    for (const f of opts.fields ?? []) {
+      fieldsSetByTicket.set(ticketId, [...(fieldsSetByTicket.get(ticketId) ?? []), f]);
+    }
+    console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}, htmlBody=${opts.htmlBody ? "yes" : "no"}, uploads=${opts.uploadTokens?.length ?? 0}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}):`);
     console.log(`     "${body.replace(/\n/g, "\n     ")}"`);
   }
   async uploadFile(filename: string, _contentType: string, data: Buffer): Promise<{ token: string; contentUrl: string }> {
@@ -719,6 +736,25 @@ async function main() {
       throw new Error(`ASSERTION FAILED: ${label} - expected matched rule "${expectedRule}", got "${r.ruleDecision.matchedRule}".`);
     }
   }
+  // --- Reason for Customer Contacting Us on every private-event path ---
+  const REASON_FIELD_ID = 24492007664795;
+  for (const [label, ticketId] of [
+    ["Contact-form request with a known city but no stated occasion should ask what the focus is", 90200],
+    ["Contact-form request with Location: unsure and no occasion should ask both questions", 90201],
+    ["Clarifier already sent and the reply is still unclear - should go to a human, not ask again", 90202],
+    ["Customer answers the clarifying question - should now quote properly", 90203],
+  ] as Array<[string, number]>) {
+    const set = fieldsSetByTicket.get(ticketId) ?? [];
+    const reason = set.find((f) => f.id === REASON_FIELD_ID);
+    if (!reason || reason.value !== "private_events") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - expected "Reason for Customer Contacting Us" to be set to "private_events", got ${JSON.stringify(reason)}. ` +
+          `Private-event tickets must be categorised on every path, including the ones that hand off to a human.`
+      );
+    }
+  }
+  console.log("Regression check passed: every private-event path sets Reason for Customer Contacting Us to Private Events.");
+
   console.log("Regression check passed: inquiries with an unknown focus or location get a clarifying question instead of a guessed quote, and we never ask twice.");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");

@@ -291,6 +291,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
         addTags: ["needs_human", "private_event_reply_after_quote"],
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
       });
       return {
         ticketId,
@@ -345,6 +346,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
         addTags: [...(ruleDecision.addTags ?? []), "private_event_needs_location"],
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
       });
       return {
         ticketId,
@@ -377,6 +379,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
         await deps.zendesk.postComment(ticketId, note, {
           isPublic: false,
           addTags: ["needs_human", "private_event_still_unclear"],
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
         });
         return {
           ticketId,
@@ -407,6 +410,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
         await deps.zendesk.postComment(ticketId, note, {
           isPublic: false,
           addTags: [...(ruleDecision.addTags ?? []), "ai_draft_pending_review", "private_event_clarification_pending"],
+          fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
         });
         return {
           ticketId,
@@ -444,6 +448,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
         addTags: [...(ruleDecision.addTags ?? []), "ai_draft_pending_review", `private_event_${category}`],
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
       });
       return { ticketId, ruleDecision, matchedLocation: location!.displayName, finalAction: "posted_internal_note", mode: deps.mode };
     }
