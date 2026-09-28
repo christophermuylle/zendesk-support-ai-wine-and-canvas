@@ -282,6 +282,27 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     // ticket, any further message is a real reply that needs a human, not
     // another copy of the template.
     if (ctx.ticket.tags.includes(PRIVATE_EVENT_QUOTE_SENT_TAG)) {
+      // ...but only when the newest message is actually FROM THE CUSTOMER.
+      // This branch re-runs on EVERY ticket update, including our own: when
+      // an agent replies on an already-quoted ticket, Zendesk fires the
+      // webhook and we land here, then post an internal note claiming "the
+      // customer replied after the quote was already sent" and tag the
+      // ticket needs_human - about the agent's own message. Christopher hit
+      // this on ticket #29490 (2026-09-28) seconds after a quote was sent
+      // by hand. Nothing was ever re-sent (the guard below did its job),
+      // but Bonnie was getting a misleading note and a needs_human flag
+      // every time she answered a quoted ticket.
+      const newest = ctx.comments[ctx.comments.length - 1];
+      if (newest && newest.author_id !== ctx.ticket.requester_id) {
+        return {
+          ticketId,
+          ruleDecision,
+          matchedLocation: null,
+          finalAction: "no_op",
+          mode: deps.mode,
+        };
+      }
+
       const note = [
         `[PRIVATE EVENT - customer replied after the quote was already sent]`,
         `Matched rule: ${ruleDecision.matchedRule}`,

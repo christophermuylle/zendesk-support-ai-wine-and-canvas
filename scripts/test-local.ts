@@ -605,6 +605,33 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (ticket #29490, 2026-09-28): an AGENT replying on an
+    // already-quoted ticket used to land in the reply-after-quote branch
+    // and get an internal note saying the CUSTOMER had replied, plus a
+    // needs_human tag - about the agent's own message. Expected: nothing
+    // at all, since the newest comment is ours.
+    label: "Agent's own reply on an already-quoted ticket should produce nothing",
+    ctx: {
+      ticket: {
+        id: 90300,
+        subject: "Party Request from Quoted Customer",
+        description: "Party Request from Wine & Canvas\n\nName: Quoted Customer\nGuests: 20\nLocation: Indianapolis, IN\nAdditional Info: birthday party",
+        status: "pending",
+        requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_quote_sent", "private_event_quote_sent_standard", "private_event_location_indianapolis"],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Quoted Customer", email: "quoted@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Quoted Customer\nGuests: 20\nLocation: Indianapolis, IN\nAdditional Info: birthday party", CUSTOMER_ID),
+        makeComment("[the quote we already sent]", 999),
+        makeComment("Hi again, just following up on the quote I sent you!", 999), // AGENT, newest
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -788,6 +815,18 @@ async function main() {
   console.log("Regression check passed: every private-event path sets Reason for Customer Contacting Us to Private Events.");
 
   console.log("Regression check passed: inquiries with an unknown focus or location get a clarifying question instead of a guessed quote, and we never ask twice.");
+
+  // --- Agent replies must not be read as customer replies (#29490) ---
+  const agentReplyLabel = "Agent's own reply on an already-quoted ticket should produce nothing";
+  const agentReply = resultsByLabel.get(agentReplyLabel);
+  if (!agentReply) throw new Error(`ASSERTION FAILED: scenario "${agentReplyLabel}" did not run`);
+  if (agentReply.finalAction !== "no_op") {
+    throw new Error(
+      `ASSERTION FAILED: #29490 regression - expected finalAction "no_op" when the newest comment is the agent's own, got "${agentReply.finalAction}". ` +
+        `An agent answering a quoted ticket must not be reported as "the customer replied after the quote".`
+    );
+  }
+  console.log("Regression check passed: an agent's own reply on a quoted ticket produces nothing (#29490).");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }
