@@ -585,6 +585,26 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (ticket #29229, Molly Caulfield): her form said
+    // "Location: Westfield indiana" and the keyword is "westfield, in", so
+    // nothing matched, no quote was generated, and the whole inquiry fell
+    // to a human - who then sent the quote by hand, which meant it never
+    // got the follow-up tags either. getTicketMatchText now also searches a
+    // state-normalised copy of the text, so the spelled-out form resolves.
+    label: "REGRESSION (#29229): 'Westfield indiana' should resolve to Indianapolis, not fall through as unknown",
+    ctx: {
+      ticket: {
+        id: 29229, subject: "Party Request from Molly Caulfield",
+        description: "Party Request from Wine & Canvas\n\nName: Molly Caulfield\nEmail: molly@example.com\nPhone: 3172582114\nPreferred Date: 2026-10-15\nPreferred Time: 1:00 PM\nGuests: 10\nLocation: Westfield indiana\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Molly Caulfield", email: "molly@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Molly Caulfield\nEmail: molly@example.com\nPhone: 3172582114\nPreferred Date: 2026-10-15\nPreferred Time: 1:00 PM\nGuests: 10\nLocation: Westfield indiana\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -753,6 +773,18 @@ async function main() {
       );
     }
   }
+  // --- Spelled-out state names (ticket #29229) ---
+  const mollyLabel = "REGRESSION (#29229): 'Westfield indiana' should resolve to Indianapolis, not fall through as unknown";
+  const molly = resultsByLabel.get(mollyLabel);
+  if (!molly) throw new Error(`ASSERTION FAILED: scenario "${mollyLabel}" did not run`);
+  if (!molly.matchedLocation || !/indianapolis/i.test(molly.matchedLocation)) {
+    throw new Error(
+      `ASSERTION FAILED: #29229 regression - expected the location to resolve to Indianapolis, got ${JSON.stringify(molly.matchedLocation)}. ` +
+        `"Westfield indiana" must match the "westfield, in" keyword via the state-name normalisation in src/util.ts.`
+    );
+  }
+  console.log("Regression check passed: spelled-out state names resolve to the right location (#29229).");
+
   console.log("Regression check passed: every private-event path sets Reason for Customer Contacting Us to Private Events.");
 
   console.log("Regression check passed: inquiries with an unknown focus or location get a clarifying question instead of a guessed quote, and we never ask twice.");

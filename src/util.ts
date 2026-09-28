@@ -12,7 +12,50 @@ export function getTicketMatchText(ctx: TicketContext): string {
   const latestCustomerMessage = [...ctx.comments]
     .reverse()
     .find((c) => c.author_id === ctx.ticket.requester_id);
-  return `${ctx.ticket.subject ?? ""}\n${latestCustomerMessage?.body ?? ctx.ticket.description ?? ""}`.toLowerCase();
+  const text = `${ctx.ticket.subject ?? ""}\n${latestCustomerMessage?.body ?? ctx.ticket.description ?? ""}`.toLowerCase();
+  // Append a state-normalised copy rather than replacing the original, so
+  // both spellings are searchable and nothing already matching can break.
+  return `${text}\n${withStateAbbreviations(text)}`;
+}
+
+// Spelled-out state names, for the normalisation below.
+const STATE_NAME_TO_ABBREVIATION: Record<string, string> = {
+  indiana: "in",
+  michigan: "mi",
+  florida: "fl",
+  california: "ca",
+  arizona: "az",
+  missouri: "mo",
+  tennessee: "tn",
+  ohio: "oh",
+  minnesota: "mn",
+  nevada: "nv",
+};
+
+/**
+ * Rewrites "Westfield indiana" and "Westfield, Indiana" to "westfield, in",
+ * the form config/locations.yaml's satellite-city keywords are written in.
+ *
+ * Ticket #29229 (Molly Caulfield, 2026-09-22) is why this exists: her form
+ * said "Location: Westfield indiana", the keyword was "westfield, in", so
+ * nothing matched, no quote was generated and the whole thing fell to a
+ * human. Christopher had to write an internal note reading "Westfield is
+ * Northwest, Indianapolis."
+ *
+ * It matters just as much for the rules engine: an out-of-scope ticket
+ * saying "Lansing Michigan" rather than "Lansing, MI" was slipping past
+ * out_of_scope_location the same way.
+ *
+ * The \b word boundary is load-bearing - without it "indianapolis" would
+ * be mangled into ", inpolis". A whole-word "indiana" cannot match inside
+ * "indianapolis", so the city name survives untouched.
+ */
+export function withStateAbbreviations(text: string): string {
+  let out = text;
+  for (const [name, abbreviation] of Object.entries(STATE_NAME_TO_ABBREVIATION)) {
+    out = out.replace(new RegExp(String.raw`,?\s*\b${name}\b`, "gi"), `, ${abbreviation}`);
+  }
+  return out;
 }
 
 /**
