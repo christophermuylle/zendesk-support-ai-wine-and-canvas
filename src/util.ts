@@ -88,10 +88,31 @@ export function extractOrderTotal(text: string): number | null {
  * PRIVATE_EVENT_INTERNAL_SENDER_PREFIX in src/config.ts for the real
  * tickets this was confirmed against.
  */
-export function isInternalBrandSender(email: string | null | undefined, brandLocalPartPrefix: string): boolean {
-  if (!email || !brandLocalPartPrefix) return false;
-  const localPart = email.trim().toLowerCase().split("@")[0];
-  return localPart.startsWith(brandLocalPartPrefix.toLowerCase());
+export function isInternalBrandSender(
+  email: string | null | undefined,
+  brandLocalPartPrefix: string,
+  brandDomains: readonly string[] = []
+): boolean {
+  if (!email) return false;
+  const [localPart, domain] = email.trim().toLowerCase().split("@");
+
+  // Named-after-the-brand mailboxes, e.g. "paintingandvino.noc@gmail.com".
+  if (brandLocalPartPrefix && localPart?.startsWith(brandLocalPartPrefix.toLowerCase())) return true;
+
+  // The brand's OWN domain, e.g. "tucson@paintingandvino.com". Added
+  // 2026-09-29 after ticket #81443: a follow-up sent from the Tucson
+  // mailbox became its own ticket with that mailbox as the REQUESTER, so
+  // the staff member's payment-reminder to a customer was read as a
+  // customer inquiry and auto-quoted - addressed "Hi Painting,". The
+  // customer on the thread replied "could this auto-reply be turned off?".
+  //
+  // The local-part check above could never have caught it: the brand name
+  // is on the right of the @, not the left. A real customer does not email
+  // from the company's own domain.
+  if (domain && brandDomains.some((d) => domain === d.toLowerCase() || domain.endsWith(`.${d.toLowerCase()}`))) {
+    return true;
+  }
+  return false;
 }
 
 /**

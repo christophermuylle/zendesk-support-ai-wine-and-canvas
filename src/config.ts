@@ -86,6 +86,16 @@ export const PRIVATE_EVENT_QUOTES_LIVE = process.env.PRIVATE_EVENT_QUOTES_LIVE =
 // email is essentially never going to start with the company's own name.
 export const PRIVATE_EVENT_INTERNAL_SENDER_PREFIX = "wineandcanvas";
 
+// The brand's own mail domains. Anything arriving FROM one of these is
+// staff, never a customer - see isInternalBrandSender in src/util.ts and
+// ticket #81443 (2026-09-29) for the incident that added this.
+export const PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS = (
+  process.env.PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS ?? "wineandcanvas.com"
+)
+  .split(",")
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
+
 // Tag scheme for the private-event follow-up sequence (src/followups.ts) -
 // added 2026-09-22 alongside the follow-up templates themselves. Same
 // naming convention Painting and Vino's config.ts uses for its own

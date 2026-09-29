@@ -632,6 +632,32 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (mirrors Painting and Vino ticket #81443, 2026-09-29):
+    // a message arriving FROM the brand's own mail domain is staff, never a
+    // customer. On that brand the Tucson mailbox became the requester on a
+    // follow-up ticket and its payment reminder was auto-quoted, addressed
+    // "Hi Painting," - the customer on the thread replied asking for the
+    // auto-reply to be turned off. isInternalBrandSender only checked the
+    // LOCAL PART for the brand name, so an address with the brand on the
+    // right of the @ sailed through. This brand has the same exposure
+    // (indy@wineandcanvas.com appears on real tickets), so the guard now
+    // covers the domain too. Worst case modelled here: the body even
+    // carries the contact-form phrase, so the rule matches and only the
+    // sender guard stands between staff and an auto-quote.
+    label: "REGRESSION (#81443 class): a message from the brand's own domain must never be auto-quoted",
+    ctx: {
+      ticket: {
+        id: 90400, subject: "Fwd: Party Request from Forwarded Customer",
+        description: "Party Request from Wine & Canvas\n\nName: Forwarded Customer\nEmail: customer@example.com\nGuests: 15\nPreferred Date: 2026-11-08\nLocation: Indianapolis, IN\nAdditional Info: birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: 7778, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: 7778, name: "Wine and Canvas Indy", email: "indy@wineandcanvas.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Forwarded Customer\nEmail: customer@example.com\nGuests: 15\nPreferred Date: 2026-11-08\nLocation: Indianapolis, IN\nAdditional Info: birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", 7778)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -827,6 +853,22 @@ async function main() {
     );
   }
   console.log("Regression check passed: an agent's own reply on a quoted ticket produces nothing (#29490).");
+
+  // --- Brand-domain senders must never be auto-quoted (#81443 class) ---
+  const wcDomainLabel = "REGRESSION (#81443 class): a message from the brand's own domain must never be auto-quoted";
+  const wcDomain = resultsByLabel.get(wcDomainLabel);
+  if (!wcDomain) throw new Error(`ASSERTION FAILED: scenario "${wcDomainLabel}" did not run`);
+  if (wcDomain.ruleDecision.matchedRule !== "event_booking_question") {
+    throw new Error(
+      `ASSERTION FAILED: #81443-class regression - scenario did not reach the private-event branch (matched "${wcDomain.ruleDecision.matchedRule}"), so the internal-sender guard was never exercised.`
+    );
+  }
+  if (wcDomain.finalAction === "posted_public_reply") {
+    throw new Error(
+      `ASSERTION FAILED: #81443-class regression - a message from the brand's own mail domain was auto-quoted.`
+    );
+  }
+  console.log("Regression check passed: mail from the brand's own domain is treated as staff, never auto-quoted (#81443).");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }
