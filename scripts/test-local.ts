@@ -704,6 +704,32 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (ticket #29107, Avyana Carrasco): the quote was sent BY
+    // HAND, so the ticket carried no quote-sent tag. Days later the agent
+    // replied again, that update woke the webhook, and with no tag to stop
+    // it the pipeline read her own message as a fresh inquiry and sent the
+    // customer a SECOND copy of the quote. The tag was missing and could
+    // not save us; what saves us is that the newest message is not the
+    // customer's. Expected: nothing at all.
+    label: "REGRESSION (#29107): an agent reply on an untagged, already-hand-quoted ticket must not re-quote",
+    ctx: {
+      ticket: {
+        id: 90600, subject: "Party Request from Avyana Carrasco",
+        description: "Party Request from Wine & Canvas\n\nName: Avyana Carrasco\nEmail: avyana@example.com\nGuests: 12\nPreferred Date: 2026-11-01\nLocation: Orlando, FL\nAdditional Info: birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "pending", requester_id: CUSTOMER_ID,
+        tags: ["booking_question"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Avyana Carrasco", email: "avyana@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Avyana Carrasco\nEmail: avyana@example.com\nGuests: 12\nPreferred Date: 2026-11-01\nLocation: Orlando, FL\nAdditional Info: birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID),
+        makeComment("[the quote Bonnie sent by hand - no tags applied]", 999),
+        makeComment("Hi Avyana, I sent you a text about your party quote. Did you get it?", 999),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -945,6 +971,18 @@ async function main() {
     );
   }
   console.log("Regression check passed: a clarifier answer keeps the details already given, and our own question never counts as an answer (#29509).");
+
+  // --- The one guard for the whole conversational half (#29107) ---
+  const avyanaLabel = "REGRESSION (#29107): an agent reply on an untagged, already-hand-quoted ticket must not re-quote";
+  const avyana = resultsByLabel.get(avyanaLabel);
+  if (!avyana) throw new Error(`ASSERTION FAILED: scenario "${avyanaLabel}" did not run`);
+  if (avyana.finalAction !== "no_op") {
+    throw new Error(
+      `ASSERTION FAILED: #29107 regression - expected "no_op" when the newest message is ours, got "${avyana.finalAction}". ` +
+        `This is the guard that stops a customer receiving a second copy of a quote when the first was sent by hand.`
+    );
+  }
+  console.log("Regression check passed: nothing conversational acts on a ticket whose newest message is our own (#29107).");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }

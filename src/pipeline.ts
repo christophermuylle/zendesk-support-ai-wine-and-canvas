@@ -293,6 +293,44 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
   // Christopher's pacing instruction: "Until we load all templates, keep
   // it to draft mode. Once I have everything sent to you, I will let you
   // know to go live."
+  // ---------------------------------------------------------------------
+  // One guard for the whole conversational half of the pipeline: never act
+  // on a ticket whose newest message is OUR OWN.
+  //
+  // This webhook fires on every ticket update, including the ones we cause.
+  // Five separate incidents in September 2026 were all this same shape,
+  // found one ticket at a time:
+  //
+  //   #29107  a hand-sent quote left no tag, so when the agent replied
+  //           later we read her message as a new inquiry and sent the
+  //           customer a SECOND copy of the quote
+  //   #29490  an agent's reply produced an internal note claiming the
+  //           customer had replied, plus a spurious needs_human
+  //   #29229  our own 120h follow-up did the same to itself
+  //   #29509  our own clarifying question was declared "still unclear
+  //           after asking" two seconds after we posted it
+  //   #81443  (related) staff mail read as a customer inquiry
+  //
+  // Each was patched in the branch where it surfaced, which is why the
+  // next one kept appearing somewhere else. The rule belongs here instead:
+  // if the last person to speak was not the customer, there is nothing for
+  // the conversational branches to respond to.
+  //
+  // Deliberately placed AFTER the mechanical branches above
+  // (order_confirmation, newsletter_signup, paypal_receipt and friends):
+  // those file an automated notification rather than answer a person, and
+  // must still run whoever commented last.
+  const newestCommentOnTicket = ctx.comments[ctx.comments.length - 1];
+  if (newestCommentOnTicket && newestCommentOnTicket.author_id !== ctx.ticket.requester_id) {
+    return {
+      ticketId,
+      ruleDecision,
+      matchedLocation: null,
+      finalAction: "no_op",
+      mode: deps.mode,
+    };
+  }
+
   if (ruleDecision.action === "private_event_quote") {
     // Idempotency guard: send the automated quote once per ticket, never
     // again. Without this, ANY later webhook call for this ticket -
@@ -307,26 +345,6 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     // ticket, any further message is a real reply that needs a human, not
     // another copy of the template.
     if (ctx.ticket.tags.includes(PRIVATE_EVENT_QUOTE_SENT_TAG)) {
-      // ...but only when the newest message is actually FROM THE CUSTOMER.
-      // This branch re-runs on EVERY ticket update, including our own: when
-      // an agent replies on an already-quoted ticket, Zendesk fires the
-      // webhook and we land here, then post an internal note claiming "the
-      // customer replied after the quote was already sent" and tag the
-      // ticket needs_human - about the agent's own message. Christopher hit
-      // this on ticket #29490 (2026-09-28) seconds after a quote was sent
-      // by hand. Nothing was ever re-sent (the guard below did its job),
-      // but Bonnie was getting a misleading note and a needs_human flag
-      // every time she answered a quoted ticket.
-      const newest = ctx.comments[ctx.comments.length - 1];
-      if (newest && newest.author_id !== ctx.ticket.requester_id) {
-        return {
-          ticketId,
-          ruleDecision,
-          matchedLocation: null,
-          finalAction: "no_op",
-          mode: deps.mode,
-        };
-      }
 
       const note = [
         `[PRIVATE EVENT - customer replied after the quote was already sent]`,
@@ -421,22 +439,6 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       // a second round of questions would read as badgering - hand it to a
       // human instead.
       if (ctx.ticket.tags.includes(PRIVATE_EVENT_CLARIFICATION_SENT_TAG)) {
-        // ...but only when the CUSTOMER has actually spoken since. This
-        // branch re-runs on every ticket update, including the clarifying
-        // question we just posted: on #29509 the clarifier went out at
-        // 11:38:13 and two seconds later this path declared the ticket
-        // "still unclear after asking" - about our own message, before the
-        // customer had any chance to reply.
-        const newestComment = ctx.comments[ctx.comments.length - 1];
-        if (newestComment && newestComment.author_id !== ctx.ticket.requester_id) {
-          return {
-            ticketId,
-            ruleDecision,
-            matchedLocation: location?.displayName ?? null,
-            finalAction: "no_op",
-            mode: deps.mode,
-          };
-        }
 
         const missing = [needsFocus ? "focus" : null, needsLocation ? "location" : null].filter(Boolean).join(" and ");
         const note = [
