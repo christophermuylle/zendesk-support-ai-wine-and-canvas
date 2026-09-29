@@ -658,6 +658,52 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (ticket #29509, Taylor Rosand, 2026-09-29): the form gave
+    // us her location, we asked what the occasion was, and she answered
+    // "team building". Matching on that reply ALONE, the focus was clear
+    // but her location had vanished - so she was told her event was still
+    // unclear. Expected: both details in view, so a proper corporate quote.
+    label: "REGRESSION (#29509): an answer to the clarifying question must not lose the location from the original form",
+    ctx: {
+      ticket: {
+        id: 29509, subject: "Party Request from Taylor Rosand",
+        description: "Party Request from Wine & Canvas\n\nName: Taylor Rosand\nEmail: taylor@example.com\nPhone: 7273653585\nPreferred Date: 2026-10-23\nPreferred Time: 5:30 PM\nGuests: 9\nLocation: Fort Lauderdale, FL\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "pending", requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_clarification_sent"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Taylor Rosand", email: "taylor@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Taylor Rosand\nEmail: taylor@example.com\nPhone: 7273653585\nPreferred Date: 2026-10-23\nPreferred Time: 5:30 PM\nGuests: 9\nLocation: Fort Lauderdale, FL\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID),
+        makeComment("[the clarifying question we sent]", 999),
+        makeComment("It's a team building, self care evening for my team of therapists in our group practice.", CUSTOMER_ID),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    // REGRESSION (#29509, second bug): the clarifying question we post
+    // wakes the webhook, and this branch used to declare the ticket "still
+    // unclear after asking" two seconds later - about our own message.
+    // Expected: nothing, because the customer has not spoken since.
+    label: "REGRESSION (#29509): our own clarifying question must not trigger 'still unclear'",
+    ctx: {
+      ticket: {
+        id: 90500, subject: "Party Request from Quiet Customer",
+        description: "Party Request from Wine & Canvas\n\nName: Taylor Rosand\nEmail: taylor@example.com\nPhone: 7273653585\nPreferred Date: 2026-10-23\nPreferred Time: 5:30 PM\nGuests: 9\nLocation: Fort Lauderdale, FL\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "pending", requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_clarification_sent"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Quiet Customer", email: "quiet@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Taylor Rosand\nEmail: taylor@example.com\nPhone: 7273653585\nPreferred Date: 2026-10-23\nPreferred Time: 5:30 PM\nGuests: 9\nLocation: Fort Lauderdale, FL\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID),
+        makeComment("[the clarifying question we just sent]", 999),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -869,6 +915,36 @@ async function main() {
     );
   }
   console.log("Regression check passed: mail from the brand's own domain is treated as staff, never auto-quoted (#81443).");
+
+  // --- Clarifier answers keep earlier details; our own question is not an answer (#29509) ---
+  const answeredLabel = "REGRESSION (#29509): an answer to the clarifying question must not lose the location from the original form";
+  const answered = resultsByLabel.get(answeredLabel);
+  if (!answered) throw new Error(`ASSERTION FAILED: scenario "${answeredLabel}" did not run`);
+  // matchedLocation is the tell. Before the fix her reply was judged on its
+  // own, the location vanished and the ticket was declared still unclear
+  // with matchedLocation null. With the fix her form's location is still in
+  // view. (finalAction can't be the check here: with
+  // PRIVATE_EVENT_QUOTES_LIVE off in this test environment a successful
+  // classification is held as an internal note, the same finalAction the
+  // still-unclear path produces.)
+  if (!answered.matchedLocation) {
+    throw new Error(
+      `ASSERTION FAILED: #29509 regression - the location from the original form was lost once the customer replied to the clarifying question.`
+    );
+  }
+  if (answered.finalAction === "private_event_clarification_sent") {
+    throw new Error(`ASSERTION FAILED: #29509 regression - the customer answered, but we asked again.`);
+  }
+
+  const quietLabel = "REGRESSION (#29509): our own clarifying question must not trigger 'still unclear'";
+  const quiet = resultsByLabel.get(quietLabel);
+  if (!quiet) throw new Error(`ASSERTION FAILED: scenario "${quietLabel}" did not run`);
+  if (quiet.finalAction !== "no_op") {
+    throw new Error(
+      `ASSERTION FAILED: #29509 regression - expected "no_op" when the newest comment is our own clarifying question, got "${quiet.finalAction}".`
+    );
+  }
+  console.log("Regression check passed: a clarifier answer keeps the details already given, and our own question never counts as an answer (#29509).");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }

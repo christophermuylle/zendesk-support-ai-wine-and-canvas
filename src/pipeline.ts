@@ -115,6 +115,30 @@ async function hasEarlierOrderForEvent(
   }
 }
 
+/**
+ * A view of the ticket whose "latest customer message" is the customer's
+ * WHOLE side of the thread - the original inquiry plus every reply they
+ * have sent - used only once a clarifying question has gone out.
+ *
+ * getTicketMatchText deliberately looks at the latest customer message
+ * alone, which is right for a fresh inquiry. It is wrong for an answer to
+ * a clarifying question: on ticket #29509 (Taylor Rosand, 2026-09-29) the
+ * contact form supplied "Location: Fort Lauderdale, FL" and we asked what
+ * the occasion was. She answered "It's a team building, self care evening
+ * for my team of therapists" - which names the focus but of course does
+ * NOT repeat her location. Matching on that reply alone, the focus was
+ * suddenly clear and the LOCATION had gone missing, so she was told her
+ * event was still unclear. Every detail the customer has given us has to
+ * stay in view.
+ */
+function withFullCustomerHistory(ctx: TicketContext): TicketContext {
+  const customerComments = ctx.comments.filter((c) => c.author_id === ctx.ticket.requester_id);
+  const latest = customerComments[customerComments.length - 1];
+  if (!latest) return ctx;
+  const merged = [ctx.ticket.description ?? "", ...customerComments.map((c) => c.body)].join(String.fromCharCode(10));
+  return { ...ctx, comments: ctx.comments.map((c) => (c === latest ? { ...c, body: merged } : c)) };
+}
+
 export async function processTicket(deps: PipelineDeps, ticketId: number): Promise<PipelineResult> {
   const ctx: TicketContext = await deps.zendesk.getTicketContext(ticketId);
 
@@ -351,9 +375,15 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       };
     }
 
-    const location = deps.locations.resolve(ctx);
+    // Once we have asked a clarifying question, judge the focus and the
+    // location against everything the customer has told us, not just their
+    // newest sentence - see withFullCustomerHistory above (#29509).
+    const privateEventCtx = ctx.ticket.tags.includes(PRIVATE_EVENT_CLARIFICATION_SENT_TAG)
+      ? withFullCustomerHistory(ctx)
+      : ctx;
+    const location = deps.locations.resolve(privateEventCtx);
     const locationKey = location ? resolvePrivateEventLocationKey(ctx, location.slug) : null;
-    const category = classifyPrivateEvent(ctx);
+    const category = classifyPrivateEvent(privateEventCtx);
 
     // A location we matched but have no private-event pricing for is NOT
     // something the customer can clear up - they already told us where
@@ -391,6 +421,23 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       // a second round of questions would read as badgering - hand it to a
       // human instead.
       if (ctx.ticket.tags.includes(PRIVATE_EVENT_CLARIFICATION_SENT_TAG)) {
+        // ...but only when the CUSTOMER has actually spoken since. This
+        // branch re-runs on every ticket update, including the clarifying
+        // question we just posted: on #29509 the clarifier went out at
+        // 11:38:13 and two seconds later this path declared the ticket
+        // "still unclear after asking" - about our own message, before the
+        // customer had any chance to reply.
+        const newestComment = ctx.comments[ctx.comments.length - 1];
+        if (newestComment && newestComment.author_id !== ctx.ticket.requester_id) {
+          return {
+            ticketId,
+            ruleDecision,
+            matchedLocation: location?.displayName ?? null,
+            finalAction: "no_op",
+            mode: deps.mode,
+          };
+        }
+
         const missing = [needsFocus ? "focus" : null, needsLocation ? "location" : null].filter(Boolean).join(" and ");
         const note = [
           `[PRIVATE EVENT - still unclear after asking]`,
