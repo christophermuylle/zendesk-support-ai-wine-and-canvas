@@ -17,6 +17,7 @@ import {
   PRIVATE_EVENT_FINAL_BALANCE_FIELD_VALUE,
   PRIVATE_EVENT_QUOTES_LIVE,
   PRIVATE_EVENT_QUOTE_SENT_TAG,
+  PRIVATE_EVENT_FORM_MARKERS,
   PRIVATE_EVENT_CLARIFICATION_SENT_TAG,
   PRIVATE_EVENT_FIELD_VALUE,
   PRIVATE_EVENT_LOCATION_TAG_PREFIX,
@@ -24,7 +25,7 @@ import {
   PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
-import { findDepositLineItem, extractOrderTotal, isInternalBrandSender } from "./util.js";
+import { findDepositLineItem, extractOrderTotal, looksLikePrivateEventFormSubmission, isInternalBrandSender } from "./util.js";
 import {
   classifyPrivateEvent,
   resolvePrivateEventLocationKey,
@@ -57,6 +58,7 @@ export interface PipelineResult {
     | "newsletter_signup_solved_and_closed"
     | "private_event_needs_location"
     | "private_event_clarification_sent"
+    | "private_event_held_not_form"
     | "no_op";
   mode: Mode;
 }
@@ -423,6 +425,47 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
         ruleDecision,
         matchedLocation: location.displayName,
         finalAction: "private_event_needs_location",
+        mode: deps.mode,
+      };
+    }
+
+    // THE GATE. Nothing goes out to a customer from this branch unless the
+    // ticket began as a real private-event form submission.
+    //
+    // Christopher, 2026-09-30: "Only auto-quote what came through the
+    // private-event form. If not a private event form it should be made a
+    // draft if it isn't 100% sure."
+    //
+    // This is the safeguard the narrower fixes could not be. Keyword
+    // matching on free-form email is open-ended - our own marketing copy
+    // quoted back to us was enough to trigger a send (#81500) - so instead
+    // of trying to enumerate what must not match, this enumerates the one
+    // thing that may: a structured submission from the form itself.
+    // Everything else becomes a draft for a human.
+    //
+    // Every misfire this month came in as free-form email: #81443 (staff
+    // mailbox), #81500 (a booked customer's quoted confirmation), #81301
+    // and #81302 (agent threads). None would pass this gate.
+    if (!looksLikePrivateEventFormSubmission(ctx, PRIVATE_EVENT_FORM_MARKERS)) {
+      const detail =
+        locationKey && category
+          ? `A quote for ${location?.displayName ?? locationKey} (${category}) would be the obvious reply - please review it and send by hand if it fits.`
+          : `We could not confidently tell the focus${locationKey ? "" : " or the location"} of this event either.`;
+      const note = [
+        `[PRIVATE EVENT - not a form submission, held for review]`,
+        `Matched rule: ${ruleDecision.matchedRule}`,
+        `This did not arrive through the private-event form, so nothing has been sent automatically. ${detail}`,
+      ].join(String.fromCharCode(10));
+      await deps.zendesk.postComment(ticketId, note, {
+        isPublic: false,
+        addTags: [...(ruleDecision.addTags ?? []), "needs_human", "private_event_not_form_submission"],
+        fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
+      });
+      return {
+        ticketId,
+        ruleDecision,
+        matchedLocation: location?.displayName ?? null,
+        finalAction: "private_event_held_not_form",
         mode: deps.mode,
       };
     }

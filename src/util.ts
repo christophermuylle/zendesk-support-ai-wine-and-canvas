@@ -220,3 +220,30 @@ export function stripQuotedReply(text: string): string {
   const kept = head.replace(/^[ \t]*>.*$/gm, "");
   return kept.trim().length >= 20 ? kept : text;
 }
+
+/**
+ * True when this ticket began as a real private-event form submission.
+ *
+ * Deliberately reads the ORIGINAL message - the ticket description and the
+ * customer's first comment - not the latest one. A customer answering a
+ * clarifying question does not repeat the form, and their reply is still
+ * part of a form-originated conversation.
+ */
+export function looksLikePrivateEventFormSubmission(ctx: TicketContext, markers: readonly string[]): boolean {
+  if (!markers.length) return false;
+  const firstCustomerComment = ctx.comments.find((c) => c.author_id === ctx.ticket.requester_id)?.body ?? "";
+  // Whitespace-insensitive on purpose. Zendesk hands us the same form
+  // submission two ways - ticket.description keeps the raw "Party Request
+  // from  Wine & Canvas" with its DOUBLE space, while the comment body is
+  // markdown-normalised to a single one. A plain substring test passes on
+  // one and fails on the other, which is exactly the sort of difference
+  // that makes a safeguard silently stop safeguarding.
+  const text = collapseWhitespace(
+    `${ctx.ticket.subject ?? ""} ${ctx.ticket.description ?? ""} ${firstCustomerComment}`
+  );
+  return markers.every((m) => text.includes(collapseWhitespace(m)));
+}
+
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}

@@ -100,6 +100,24 @@ export const PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS = (
 // added 2026-09-22 alongside the follow-up templates themselves. Same
 // naming convention Painting and Vino's config.ts uses for its own
 // (single-pool) version of this sequence.
+// Text that only a real private-event FORM submission carries. Anything
+// reaching the private-event branch WITHOUT all of these is free-form
+// email, and free-form email is where every misfire has come from -
+// Christopher, 2026-09-30: "Only auto-quote what came through the
+// private-event form. If not a private event form it should be made a
+// draft if it isn't 100% sure."
+//
+// Checked against live tickets before being chosen: every genuine form
+// submission carries them, and none of the tickets that misfired
+// (#81443 staff mail, #81500 a booked customer's quoted confirmation,
+// #81301/#81302 agent threads) carry any.
+export const PRIVATE_EVENT_FORM_MARKERS = (
+  process.env.PRIVATE_EVENT_FORM_MARKERS ?? "party request from wine & canvas"
+)
+  .split("|")
+  .map((m) => m.trim().toLowerCase())
+  .filter(Boolean);
+
 export const PRIVATE_EVENT_QUOTE_SENT_TAG = "private_event_quote_sent";
 
 // Stamped when we send a clarifying first response (focus and/or location

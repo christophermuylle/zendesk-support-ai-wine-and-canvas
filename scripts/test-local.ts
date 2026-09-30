@@ -753,6 +753,25 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // THE GATE (Christopher, 2026-09-30): a perfectly reasonable private
+    // event request that did NOT come through the form. It reads like a
+    // real inquiry and would classify cleanly - and that is exactly the
+    // problem, because so did our own marketing copy quoted back to us on
+    // #81500. Free-form email is held for a human instead.
+    label: "GATE: a convincing private-event request that did not come through the form must be held, not sent",
+    ctx: {
+      ticket: {
+        id: 90700, subject: "Private event pricing",
+        description: "Hi there, we'd like to book a private event for about 20 people in November. It's a corporate team building day. Can you send pricing?",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Free Form", email: "freeform@example.com" },
+      comments: [makeComment("Hi there, we'd like to book a private event for about 20 people in November. It's a corporate team building day. Can you send pricing?", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1023,6 +1042,22 @@ async function main() {
     );
   }
   console.log("Regression check passed: quoted email history is not treated as the customer's own message (#81500).");
+
+  // --- The form gate (Christopher, 2026-09-30) ---
+  const gateLabel = "GATE: a convincing private-event request that did not come through the form must be held, not sent";
+  const gate = resultsByLabel.get(gateLabel);
+  if (!gate) throw new Error(`ASSERTION FAILED: scenario "${gateLabel}" did not run`);
+  // On this brand a free-form request is stopped one layer earlier -
+  // event_booking_question itself requires the contact-form phrase, so it
+  // never reaches the private-event branch. Either outcome is correct; what
+  // matters is that nothing reached the customer.
+  if (gate.finalAction === "posted_public_reply" || gate.finalAction === "private_event_clarification_sent") {
+    throw new Error(
+      `ASSERTION FAILED: form gate - a non-form request produced "${gate.finalAction}". ` +
+        `Nothing reaches a customer automatically unless the ticket began as a form submission.`
+    );
+  }
+  console.log("Regression check passed: only form submissions are answered automatically; free-form email is held for a human.");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }
