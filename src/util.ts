@@ -12,7 +12,8 @@ export function getTicketMatchText(ctx: TicketContext): string {
   const latestCustomerMessage = [...ctx.comments]
     .reverse()
     .find((c) => c.author_id === ctx.ticket.requester_id);
-  const text = `${ctx.ticket.subject ?? ""}\n${latestCustomerMessage?.body ?? ctx.ticket.description ?? ""}`.toLowerCase();
+  const latestBody = stripQuotedReply(latestCustomerMessage?.body ?? ctx.ticket.description ?? "");
+  const text = `${ctx.ticket.subject ?? ""}\n${latestBody}`.toLowerCase();
   // Append a state-normalised copy rather than replacing the original, so
   // both spellings are searchable and nothing already matching can break.
   return `${text}\n${withStateAbbreviations(text)}`;
@@ -174,4 +175,48 @@ export function extractOrderLineItems(text: string): OrderLineItem[] {
  */
 export function findDepositLineItem(text: string): OrderLineItem | null {
   return extractOrderLineItems(text).find((i) => /\bdeposit\b/i.test(i.name)) ?? null;
+}
+
+
+// Markers that begin the quoted copy of an earlier email. Kept narrow on
+// purpose: the Outlook form requires a "From:" line IMMEDIATELY followed by
+// Sent:/To:/Date:, so a customer writing "From: our office we'd like..."
+// is not mistaken for a quote header.
+const QUOTED_REPLY_MARKERS: RegExp[] = [
+  /^[ \t>]*from:[ \t].+\r?\n[ \t>]*(sent|to|date):/im,
+  /^[ \t>]*-{2,}\s*original message\s*-{2,}/im,
+  /^[ \t>]*on\s.{0,160}\bwrote:\s*$/im,
+  /^[ \t>]*_{10,}\s*$/m,
+];
+
+/**
+ * Drops the quoted history from an email reply, keeping only what the
+ * person actually typed this time.
+ *
+ * Ticket #81500 (Maribeth Grandpre, 2026-09-30) is why this exists. She was
+ * already booked and paid, and replied to her own ticket-confirmation email
+ * with one line: "Is it possible to change the time to 3:00- 4:30 pm?"
+ * Quoted underneath was OUR confirmation, containing "Private painting
+ * event with Erin" - and "painting event" is one of
+ * event_booking_question's keywords. So our own marketing copy, quoted back
+ * to us, was read as a fresh private-event inquiry, and she was asked what
+ * the occasion of her event was.
+ *
+ * Every customer replying to any of our emails carries our words in their
+ * quote trail, so this was never going to be a one-off.
+ *
+ * If there is nothing substantial above the marker the whole text is kept -
+ * some people reply underneath the quote, and half a message is worse than
+ * a stray keyword.
+ */
+export function stripQuotedReply(text: string): string {
+  if (!text) return text;
+  let cut = text.length;
+  for (const re of QUOTED_REPLY_MARKERS) {
+    const m = re.exec(text);
+    if (m && m.index < cut) cut = m.index;
+  }
+  const head = text.slice(0, cut);
+  const kept = head.replace(/^[ \t]*>.*$/gm, "");
+  return kept.trim().length >= 20 ? kept : text;
 }

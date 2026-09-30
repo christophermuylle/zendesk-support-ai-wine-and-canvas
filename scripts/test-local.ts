@@ -730,6 +730,29 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // REGRESSION (ticket #81500, Maribeth Grandpre, 2026-09-30): an
+    // already-booked, already-paid customer replied to her own ticket
+    // confirmation asking to move the start time by half an hour. Quoted
+    // underneath was OUR confirmation email, containing "Private painting
+    // event with Erin" - and "painting event" is one of this rule's
+    // keywords. Our own words, quoted back to us, were read as a fresh
+    // private-event inquiry and she was asked what the occasion was.
+    // Expected: her one-line question is all that gets matched, so this
+    // never reaches the private-event branch.
+    label: "REGRESSION (#81500): quoted email history must not be matched as the customer's message",
+    ctx: {
+      ticket: {
+        id: 81500, subject: "RE: Your tickets from Painting and Vino",
+        description: "Hi Erin,\n\nIs it possible to change the time to 3:00- 4:30 pm?\n\nPlease let me know.\n\nThanks!\nMaribeth\n\nFrom: Wine and Canvas <support@wineandcanvas.com>\nSent: Wednesday, September 23, 2026 6:10 PM\nTo: Maribeth\nSubject: Your tickets\n\nPrivate painting event with Erin\nCSN Private Paint event activity",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Maribeth Grandpre", email: "maribeth@example.com" },
+      comments: [makeComment("Hi Erin,\n\nIs it possible to change the time to 3:00- 4:30 pm?\n\nPlease let me know.\n\nThanks!\nMaribeth\n\nFrom: Wine and Canvas <support@wineandcanvas.com>\nSent: Wednesday, September 23, 2026 6:10 PM\nTo: Maribeth\nSubject: Your tickets\n\nPrivate painting event with Erin\nCSN Private Paint event activity", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -983,6 +1006,23 @@ async function main() {
     );
   }
   console.log("Regression check passed: nothing conversational acts on a ticket whose newest message is our own (#29107).");
+
+  // --- Quoted email history is not the customer's message (#81500) ---
+  const quotedLabel = "REGRESSION (#81500): quoted email history must not be matched as the customer's message";
+  const quoted = resultsByLabel.get(quotedLabel);
+  if (!quoted) throw new Error(`ASSERTION FAILED: scenario "${quotedLabel}" did not run`);
+  if (quoted.ruleDecision.matchedRule === "event_booking_question") {
+    throw new Error(
+      `ASSERTION FAILED: #81500 regression - a booked customer asking to move her start time matched event_booking_question. ` +
+        `The only private-event wording is in the quoted copy of our own email, which is not something she said.`
+    );
+  }
+  if (quoted.finalAction === "private_event_clarification_sent" || quoted.finalAction === "posted_public_reply") {
+    throw new Error(
+      `ASSERTION FAILED: #81500 regression - expected no private-event reply, got "${quoted.finalAction}".`
+    );
+  }
+  console.log("Regression check passed: quoted email history is not treated as the customer's own message (#81500).");
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }
