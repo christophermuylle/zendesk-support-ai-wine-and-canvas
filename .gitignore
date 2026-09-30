@@ -2,3 +2,6 @@ node_modules/
 dist/
 .env
 *.log
+
+# Scratch folders used when rendering a quote or testing by hand
+tmp-*/
