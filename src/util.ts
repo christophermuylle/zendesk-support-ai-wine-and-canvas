@@ -252,3 +252,117 @@ export function looksLikePrivateEventFormSubmission(ctx: TicketContext, markers:
 function collapseWhitespace(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
+
+/**
+ * The name the customer actually typed on the private-event form.
+ *
+ * The contact form emails Zendesk from a shared address with the person's
+ * real name only in the BODY ("Name: Wendy Fortune"), so Zendesk invents
+ * the end-user's name from the email address instead. That is why real
+ * quotes went out addressed "Hi Trosand," (#29509, Taylor Rosand) and "Hi
+ * Sstinson131313," (#29453, Sandy Madsen) - of 19 private-event tickets
+ * audited 2026-09-30, 14 had a user record that disagreed with the name on
+ * the form.
+ *
+ * Returns null when there is no trustworthy name rather than guessing.
+ * Deliberately strict about what it accepts: an unrendered form
+ * placeholder ("[name]" - the same WordPress bug that keeps sending us
+ * "[preferredtime]"), an address, a URL or an implausible length all fall
+ * back to the Zendesk record, because greeting someone with junk is worse
+ * than greeting them with a clumsy-but-real handle.
+ */
+export function extractFormContactName(ctx: TicketContext): string | null {
+  const firstCustomerComment = ctx.comments.find((c) => c.author_id === ctx.ticket.requester_id)?.body ?? "";
+  // Description first: it is the raw form email. The comment body is the
+  // markdown-normalised copy of the same thing and is only a fallback.
+  for (const source of [ctx.ticket.description ?? "", firstCustomerComment]) {
+    // Shape 1 - Wine and Canvas: "Name: Wendy Fortune" on one line.
+    const inline = source.match(/^[ \t>*]*Name[ \t]*:[ \t]*(.+)$/im);
+    if (inline) {
+      const cleaned = cleanPersonName(inline[1]);
+      if (cleaned) return cleaned;
+    }
+    // Shape 2 - Painting and Vino: the label sits alone on its line and
+    // the value follows several blank/tab-only lines later (#81249 "Brenda
+    // Nieto" on file as "Bnieto1"; #81445 "Chanel Richardson" as
+    // "Crichardson"). Verified against live PV form submissions
+    // 2026-09-30; the two shapes are disjoint, so both parsers can run.
+    const lines = source.split(/\r?\n/);
+    const labelIndex = lines.findIndex((l) => /^[ \t>*]*Name[ \t>*]*$/i.test(l));
+    if (labelIndex !== -1) {
+      for (let i = labelIndex + 1; i < Math.min(labelIndex + 10, lines.length); i++) {
+        const raw = lines[i].trim();
+        if (!raw) continue;
+        // An empty Name field would otherwise hand us "Company Name".
+        if (looksLikeFormLabel(raw)) break;
+        const cleaned = cleanPersonName(raw);
+        if (cleaned) return cleaned;
+        break;
+      }
+    }
+  }
+  return null;
+}
+
+function cleanPersonName(raw: string): string | null {
+  const name = raw.replace(/\s+/g, " ").trim().replace(/[*_,;.]+$/, "").trim();
+  return isPlausiblePersonName(name) ? name : null;
+}
+
+const FORM_LABELS: ReadonlySet<string> = new Set([
+  "name", "company name", "email", "email address", "phone", "phone number", "address",
+  "date of event", "time of event", "number of expected guests", "guests", "source page",
+  "referral", "preferred date", "preferred time", "additional info", "map it", "location",
+]);
+
+function looksLikeFormLabel(line: string): boolean {
+  const l = line.replace(/\s+/g, " ").trim().toLowerCase().replace(/[:?]+$/, "");
+  if (FORM_LABELS.has(l)) return true;
+  // PV's longer questions ("What location do you want to host the event
+  // in...?", "How'd you hear about us?") all end in a question mark.
+  return line.trim().endsWith("?") || line.trim().endsWith(":");
+}
+
+function isPlausiblePersonName(name: string): boolean {
+  if (name.length < 2 || name.length > 70) return false;
+  if (/^\[.*\]$/.test(name)) return false; // unrendered form placeholder
+  if (name.includes("@") || /https?:\/\//i.test(name)) return false;
+  if (/[?/|]/.test(name)) return false;
+  if (!/\p{L}/u.test(name)) return false;
+  if (looksLikeFormLabel(name)) return false;
+  return true;
+}
+
+/**
+ * First name for a "Hi {first}," greeting. Handles the "Last, First"
+ * spelling Zendesk sometimes stores (#29218 was on file as "Halpin,
+ * Elisa", which a naive split greets as "Hi Halpin,").
+ */
+export function firstNameFromFullName(full: string | null | undefined): string | null {
+  const name = (full ?? "").replace(/\s+/g, " ").trim();
+  if (!name) return null;
+  const inverted = name.match(/^([^,]+),\s*(.+)$/);
+  const ordered = inverted ? inverted[2] : name;
+  const first = ordered.trim().split(" ")[0]?.replace(/[^\p{L}\p{M}'-]/gu, "");
+  return first && first.length >= 2 ? first : null;
+}
+
+/**
+ * True when a Zendesk user's name looks like something Zendesk derived
+ * from their email address rather than something a person entered - the
+ * test for whether it is safe to overwrite with the form name.
+ *
+ * Conservative on purpose: #28930 is on file as "Hanadya Ale" but signed
+ * the form "Hanny Ale". That is a real full name against a nickname, so
+ * the greeting uses what she typed while the record keeps the fuller name.
+ */
+export function looksMachineDerivedName(name: string | null | undefined, email: string | null | undefined): boolean {
+  const n = (name ?? "").trim();
+  if (!n) return true;
+  // "Trosand", "Jamkay24", "Mollycaulfield", "Philandlauraturner" - a
+  // single run of characters is never how someone types their own name.
+  if (!n.includes(" ")) return true;
+  const localPart = (email ?? "").split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!localPart) return false;
+  return n.toLowerCase().replace(/[^a-z0-9]/g, "") === localPart;
+}

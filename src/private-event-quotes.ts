@@ -26,7 +26,7 @@
 // ****************************************************************************
 
 import type { TicketContext } from "./types.js";
-import { getTicketMatchText } from "./util.js";
+import { extractFormContactName, firstNameFromFullName, getTicketMatchText } from "./util.js";
 
 export type PrivateEventCategory = "kids" | "fundraiser" | "corporate" | "standard";
 
@@ -418,9 +418,14 @@ export function getLocationInfo(key: PrivateEventLocationKey): PrivateEventLocat
 
 /** First name for the "Hi [First Name]," greeting - falls back to "there" if we only have a full name or nothing. */
 export function getFirstName(ctx: TicketContext): string {
-  const name = ctx.requester?.name?.trim();
-  if (!name) return "there";
-  return name.split(/\s+/)[0];
+  // The name the customer typed on the form beats the one Zendesk invented
+  // from their email address - see extractFormContactName in util.ts for
+  // why (#29509 went out as "Hi Trosand,").
+  return (
+    firstNameFromFullName(extractFormContactName(ctx)) ??
+    firstNameFromFullName(ctx.requester?.name) ??
+    "there"
+  );
 }
 
 // Confirmed final wording, Christopher 2026-09-21 (after his edit: "Great,

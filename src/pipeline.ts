@@ -26,7 +26,14 @@ import {
   PRIVATE_EVENT_INTERNAL_SENDER_ADDRESSES,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
-import { findDepositLineItem, extractOrderTotal, looksLikePrivateEventFormSubmission, isInternalBrandSender } from "./util.js";
+import {
+  findDepositLineItem,
+  extractOrderTotal,
+  extractFormContactName,
+  looksMachineDerivedName,
+  looksLikePrivateEventFormSubmission,
+  isInternalBrandSender,
+} from "./util.js";
 import {
   classifyPrivateEvent,
   resolvePrivateEventLocationKey,
@@ -399,6 +406,13 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     // Once we have asked a clarifying question, judge the focus and the
     // location against everything the customer has told us, not just their
     // newest sentence - see withFullCustomerHistory above (#29509).
+    // Correct the requester's name BEFORE anything is sent. getFirstName
+    // already prefers the form name for the message we are about to write,
+    // but the three follow-up emails read the Zendesk USER RECORD, as does
+    // the agent view Bonnie works in - so the record is what has to change
+    // for "Hi Trosand," (#29509) to stop recurring on emails 1-3.
+    await correctRequesterName(deps, ctx);
+
     const privateEventCtx = ctx.ticket.tags.includes(PRIVATE_EVENT_CLARIFICATION_SENT_TAG)
       ? withFullCustomerHistory(ctx)
       : ctx;
@@ -666,4 +680,32 @@ function formatPrivateEventInternalNote(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/**
+ * Replaces a Zendesk-invented requester name with the one the customer
+ * typed on the private-event form. No-op unless there IS a form name, it
+ * differs, and the stored one looks machine-derived - see
+ * looksMachineDerivedName in src/util.ts for why that last test matters.
+ *
+ * Never throws: a cosmetic name fix must not be able to stop a quote.
+ */
+async function correctRequesterName(deps: PipelineDeps, ctx: TicketContext): Promise<void> {
+  const requester = ctx.requester;
+  if (!requester) return;
+  const formName = extractFormContactName(ctx);
+  if (!formName) return;
+  if (formName.toLowerCase() === (requester.name ?? "").trim().toLowerCase()) return;
+  if (!looksMachineDerivedName(requester.name, requester.email)) return;
+  try {
+    await deps.zendesk.updateUserName(requester.id, formName);
+    console.log(
+      `[pipeline] ticket ${ctx.ticket.id}: corrected requester name "${requester.name}" -> "${formName}" (from the form body)`
+    );
+  } catch (err) {
+    console.error(
+      `[pipeline] ticket ${ctx.ticket.id}: could not correct requester name to "${formName}" - sending anyway:`,
+      err
+    );
+  }
 }

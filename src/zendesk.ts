@@ -41,6 +41,14 @@ export interface IZendeskClient {
   uploadFile(filename: string, contentType: string, data: Buffer): Promise<{ token: string; contentUrl: string }>;
   /** Used only by the private-event follow-up poller (src/followups.ts) to find candidate tickets. */
   searchTicketIds(query: string): Promise<number[]>;
+  /**
+   * Corrects an end-user's display name. The contact form leaves Zendesk to
+   * invent a name from the email address (see extractFormContactName in
+   * src/util.ts), and that invented name is what the follow-up poller and
+   * the agent view both read - so fixing the record, not just one reply, is
+   * what stops "Hi Trosand," recurring on emails 1-3.
+   */
+  updateUserName(userId: number, name: string): Promise<void>;
 }
 
 export class ZendeskClient implements IZendeskClient {
@@ -182,6 +190,13 @@ export class ZendeskClient implements IZendeskClient {
    * Customer Contacting Us" tagger field) - passed straight through as the
    * `fields` array the ticket API expects: [{ id, value }, ...].
    */
+  async updateUserName(userId: number, name: string): Promise<void> {
+    await this.request(`/users/${userId}.json`, {
+      method: "PUT",
+      body: JSON.stringify({ user: { name } }),
+    });
+  }
+
   async updateTicket(
     ticketId: number,
     opts: { status?: ZendeskStatus; addTags?: string[]; fields?: Array<{ id: number; value: string | null }> }

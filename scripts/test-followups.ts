@@ -35,6 +35,7 @@ interface StoredTicket {
 }
 
 class InMemoryZendesk implements IZendeskClient {
+  readonly renamedUsers: Array<{ userId: number; name: string }> = [];
   constructor(private store: Map<number, StoredTicket>) {}
 
   async getTicketContext(ticketId: number): Promise<TicketContext> {
@@ -79,6 +80,9 @@ class InMemoryZendesk implements IZendeskClient {
     return [...this.store.values()]
       .filter((t) => t.ticket.status === "pending" && t.ticket.tags.includes("private_event_quote_sent"))
       .map((t) => t.ticket.id);
+  }
+  async updateUserName(userId: number, name: string): Promise<void> {
+    this.renamedUsers.push({ userId, name });
   }
 }
 

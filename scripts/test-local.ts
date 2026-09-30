@@ -18,6 +18,7 @@ import { AiDrafter, type IAiDrafter } from "../src/ai.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import { processTicket } from "../src/pipeline.js";
 import type { ActionType, DraftResult, RuleDecision, TicketContext, ZendeskComment } from "../src/types.js";
+import { extractFormContactName, firstNameFromFullName, looksMachineDerivedName } from "../src/util.js";
 
 const CONFIG_DIR = path.resolve(process.cwd(), "config");
 const sharedKnowledgeBase = fs.readFileSync(path.join(CONFIG_DIR, "knowledge-base", "shared.md"), "utf-8");
@@ -79,7 +80,17 @@ class MockZendeskClient implements IZendeskClient {
     console.log(`\n  -> would search Zendesk: ${query}`);
     return this.priorOrderTicketIds;
   }
+  async updateUserName(userId: number, name: string): Promise<void> {
+    nameCorrections.push({ userId, name });
+    console.log(`\n  -> would rename Zendesk user ${userId} to "${name}"`);
+  }
 }
+
+// Records every requester-name correction the pipeline makes, so a
+// scenario can assert on it. The WC mock used to silently drop `fields`,
+// which meant the Reason-for-Contact assertions could never fail - not
+// repeating that mistake with this one.
+const nameCorrections: Array<{ userId: number; name: string }> = [];
 
 // --- Mock AI: used when no ANTHROPIC_API_KEY is set, so the rules engine can be
 // tested offline. Produces an obviously-fake reply that echoes the rule decision. ---
@@ -659,6 +670,30 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
     },
   },
   {
+    // REGRESSION (ticket #29607, Wendy Fortune, 2026-09-30): the contact
+    // form emails us from a shared address, so Zendesk invented the
+    // end-user "Viawendy" from viawendy@gmail.com and the clarifier went
+    // out as "Hi Viawendy,". An audit the same day found 14 of 19
+    // private-event tickets had a user record disagreeing with the form -
+    // #29509 was greeted "Hi Trosand," and #29453 "Hi Sstinson131313,".
+    // Expected: the greeting uses the form name, and the USER RECORD is
+    // corrected too, because emails 1-3 read the record rather than this
+    // reply.
+    label: "REGRESSION (#29607): the form name beats the name Zendesk invented from the email address",
+    ctx: {
+      ticket: {
+        id: 29607, subject: "Party Request from Wendy Fortune",
+        description: "Party Request from Wine & Canvas Florida \n\n Name: Wendy Fortune \n Email: viawendy@gmail.com \n Phone: 9544640778 \n Preferred Date: 2026-10-10 \n Preferred Time: [preferredtime] \n Guests: 8 \n Location: My office in Margate \n Additional Info: I'm having a small launch party at my office for about 8 ladies. \n Referral: Online \n\n-- \nThis e-mail was sent from a contact form on Wine and Canvas \u2013 Florida (https://wineandcanvas.com/florida)",
+        status: "open", requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_events"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Viawendy", email: "viawendy@gmail.com" },
+      comments: [makeComment("Party Request from Wine & Canvas Florida \n\n Name: Wendy Fortune \n Email: viawendy@gmail.com \n Phone: 9544640778 \n Preferred Date: 2026-10-10 \n Preferred Time: [preferredtime] \n Guests: 8 \n Location: My office in Margate \n Additional Info: I'm having a small launch party at my office for about 8 ladies. \n Referral: Online \n\n-- \nThis e-mail was sent from a contact form on Wine and Canvas \u2013 Florida (https://wineandcanvas.com/florida)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
     // REGRESSION (ticket #29509, Taylor Rosand, 2026-09-29): the form gave
     // us her location, we asked what the occasion was, and she answered
     // "team building". Matching on that reply ALONE, the focus was clear
@@ -813,6 +848,57 @@ async function main() {
     );
   }
   console.log("\nRegression check passed: reply-after-quote does not re-send the quote email.");
+
+  // --- Regression checks for the requester-name fix (2026-09-30, #29607) ---
+  const nameLabel = "REGRESSION (#29607): the form name beats the name Zendesk invented from the email address";
+  const nameResult = resultsByLabel.get(nameLabel);
+  if (!nameResult) throw new Error(`ASSERTION FAILED: scenario "${nameLabel}" did not run`);
+  const rename = nameCorrections.find((c) => c.userId === CUSTOMER_ID);
+  if (!rename) {
+    throw new Error(
+      `ASSERTION FAILED: requester-name fix - the pipeline never corrected the Zendesk user record. ` +
+        `Follow-up emails 1-3 read the record, not the reply, so without this they all go out as "Hi Viawendy,".`
+    );
+  }
+  if (rename.name !== "Wendy Fortune") {
+    throw new Error(`ASSERTION FAILED: requester-name fix - expected the record set to "Wendy Fortune", got "${rename.name}".`);
+  }
+  console.log(`\nRegression check passed: requester name corrected to "${rename.name}" from the form body.`);
+
+  // Unit-level checks on the pieces, because the pipeline path above only
+  // exercises the happy case.
+  const nameUnitCases: Array<[string, string | null, string | null, boolean]> = [
+    // [stored name, stored email, form name, may we overwrite the record?]
+    ["Viawendy", "viawendy@gmail.com", "Wendy Fortune", true],
+    ["Trosand", "trosand@example.com", "Taylor Rosand", true],
+    ["Mollycaulfield", "mollycaulfield@example.com", "Molly Caulfield", true],
+    // A real full name against a form nickname - the record must survive.
+    ["Hanadya Ale", "hanadya@example.com", "Hanny Ale", false],
+  ];
+  for (const [stored, email, _form, mayOverwrite] of nameUnitCases) {
+    if (looksMachineDerivedName(stored, email) !== mayOverwrite) {
+      throw new Error(
+        `ASSERTION FAILED: looksMachineDerivedName("${stored}", "${email}") should be ${mayOverwrite}. ` +
+          `Getting this wrong either leaves "Hi Trosand," in place or overwrites someone's real name.`
+      );
+    }
+  }
+  // "Last, First" - #29218 was stored as "Halpin, Elisa" and greeted "Hi Halpin,".
+  if (firstNameFromFullName("Halpin, Elisa") !== "Elisa") {
+    throw new Error(`ASSERTION FAILED: firstNameFromFullName("Halpin, Elisa") should be "Elisa", got "${firstNameFromFullName("Halpin, Elisa")}".`);
+  }
+  // An unrendered form placeholder must never become a greeting - the same
+  // WordPress bug that keeps sending us "[preferredtime]".
+  const placeholderCtx: TicketContext = {
+    ticket: { ...scenarios[0].ctx.ticket, id: 99999, description: "Party Request from Wine & Canvas\n\nName: [name]\nGuests: 12", requester_id: CUSTOMER_ID },
+    requester: { id: CUSTOMER_ID, name: "Realperson Name", email: "real@example.com" },
+    comments: [],
+    brand: "wine_and_canvas",
+  };
+  if (extractFormContactName(placeholderCtx) !== null) {
+    throw new Error(`ASSERTION FAILED: an unrendered "[name]" placeholder must be rejected, got "${extractFormContactName(placeholderCtx)}".`);
+  }
+  console.log("Regression check passed: name parsing rejects placeholders, handles \"Last, First\", and leaves real names alone.");
 
   // --- Regression checks for the internal-sender/staff-misfire fix (2026-09-23) ---
   const truePositiveLabel = "TRUE POSITIVE (mirrors ticket #29199): genuine contact-form Party Request should still auto-quote";
