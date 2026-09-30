@@ -89,6 +89,19 @@ export const PRIVATE_EVENT_INTERNAL_SENDER_PREFIX = "wineandcanvas";
 // The brand's own mail domains. Anything arriving FROM one of these is
 // staff, never a customer - see isInternalBrandSender in src/util.ts and
 // ticket #81443 (2026-09-29) for the incident that added this.
+// Individual staff addresses that neither the brand-name prefix nor the
+// brand domain would catch. Bonnie coordinates private events for BOTH
+// brands from wineandcanvas.events@gmail.com - so on Wine and Canvas the
+// "wineandcanvas" prefix catches her, and on Painting and Vino nothing
+// would have. Christopher supplied the address 2026-09-30; adding it here
+// closes the same gap #81443 opened, one brand over.
+export const PRIVATE_EVENT_INTERNAL_SENDER_ADDRESSES = (
+  process.env.PRIVATE_EVENT_INTERNAL_SENDER_ADDRESSES ?? "wineandcanvas.events@gmail.com"
+)
+  .split(",")
+  .map((a) => a.trim().toLowerCase())
+  .filter(Boolean);
+
 export const PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS = (
   process.env.PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS ?? "wineandcanvas.com"
 )
