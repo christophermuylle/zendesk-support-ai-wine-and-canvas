@@ -49,6 +49,16 @@ export interface IZendeskClient {
    * what stops "Hi Trosand," recurring on emails 1-3.
    */
   updateUserName(userId: number, name: string): Promise<void>;
+  searchTickets(query: string): Promise<ZendeskTicket[]>;
+  /** Creates a new ticket (used to deliver the daily digest by email). */
+  createTicket(opts: {
+    subject: string;
+    body: string;
+    requesterEmail: string;
+    ccEmails?: string[];
+    tags?: string[];
+    status?: ZendeskStatus;
+  }): Promise<number>;
 }
 
 export class ZendeskClient implements IZendeskClient {
@@ -190,6 +200,53 @@ export class ZendeskClient implements IZendeskClient {
    * Customer Contacting Us" tagger field) - passed straight through as the
    * `fields` array the ticket API expects: [{ id, value }, ...].
    */
+  /**
+   * Same search as searchTicketIds but keeps the whole ticket - the digest
+   * needs subjects, tags, status and dates, and re-fetching each one by id
+   * would be dozens of extra calls every morning.
+   */
+  async searchTickets(query: string): Promise<ZendeskTicket[]> {
+    const out: ZendeskTicket[] = [];
+    let path: string | null = `/search.json?query=${encodeURIComponent(query)}&sort_by=created_at&sort_order=desc`;
+    while (path && out.length < 300) {
+      const data: { results: ZendeskTicket[]; next_page: string | null } = await this.request(path);
+      out.push(...(data.results ?? []));
+      path = data.next_page ? data.next_page.replace(this.baseUrl, "") : null;
+    }
+    return out;
+  }
+
+  /**
+   * Creates a ticket. Used to deliver the daily private-event digest: the
+   * recipients go on as requester and CCs, so Zendesk emails it to them and
+   * we need no mail server, no SMTP credentials and no new integration. It
+   * is created already solved, so it never lands in anyone's open queue.
+   */
+  async createTicket(opts: {
+    subject: string;
+    body: string;
+    requesterEmail: string;
+    ccEmails?: string[];
+    tags?: string[];
+    status?: ZendeskStatus;
+  }): Promise<number> {
+    const ticket: Record<string, unknown> = {
+      subject: opts.subject,
+      comment: { body: opts.body, public: true },
+      requester: { email: opts.requesterEmail, name: opts.requesterEmail.split("@")[0] },
+      status: opts.status ?? "solved",
+    };
+    if (opts.ccEmails?.length) {
+      ticket.email_ccs = opts.ccEmails.map((email) => ({ user_email: email, action: "put" }));
+    }
+    if (opts.tags?.length) ticket.tags = opts.tags;
+    const data: { ticket: { id: number } } = await this.request(`/tickets.json`, {
+      method: "POST",
+      body: JSON.stringify({ ticket }),
+    });
+    return data.ticket.id;
+  }
+
   async updateUserName(userId: number, name: string): Promise<void> {
     await this.request(`/users/${userId}.json`, {
       method: "PUT",

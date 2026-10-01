@@ -80,6 +80,14 @@ class MockZendeskClient implements IZendeskClient {
     console.log(`\n  -> would search Zendesk: ${query}`);
     return this.priorOrderTicketIds;
   }
+  // The digest is exercised by its own preview endpoint against real
+  // Zendesk data, not by this per-scenario harness.
+  async searchTickets(): Promise<never[]> {
+    return [];
+  }
+  async createTicket(): Promise<number> {
+    throw new Error("createTicket is not expected in this test");
+  }
   async updateUserName(userId: number, name: string): Promise<void> {
     nameCorrections.push({ userId, name });
     console.log(`\n  -> would rename Zendesk user ${userId} to "${name}"`);

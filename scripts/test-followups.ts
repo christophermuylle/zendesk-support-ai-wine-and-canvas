@@ -81,6 +81,14 @@ class InMemoryZendesk implements IZendeskClient {
       .filter((t) => t.ticket.status === "pending" && t.ticket.tags.includes("private_event_quote_sent"))
       .map((t) => t.ticket.id);
   }
+  // The digest is exercised by its own preview endpoint against real
+  // Zendesk data, not by this per-scenario harness.
+  async searchTickets(): Promise<never[]> {
+    return [];
+  }
+  async createTicket(): Promise<number> {
+    throw new Error("createTicket is not expected in this test");
+  }
   async updateUserName(userId: number, name: string): Promise<void> {
     this.renamedUsers.push({ userId, name });
   }

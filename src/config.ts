@@ -165,3 +165,16 @@ export const env = {
   brand: process.env.BRAND ?? "painting_and_vino",
   port: Number(process.env.PORT ?? 3000),
 };
+
+// Daily private-event digest (src/digest.ts). Off by default: it emails
+// real people, so it stays dark until DIGEST_ENABLED=true is set in
+// Railway. Everything else is overridable without a deploy.
+export const DIGEST_ENABLED = process.env.DIGEST_ENABLED === "true";
+export const DIGEST_BRAND_LABEL = process.env.DIGEST_BRAND_LABEL ?? "Wine and Canvas";
+export const DIGEST_TO = process.env.DIGEST_TO ?? "chris@wineandcanvas.com";
+export const DIGEST_CC = (process.env.DIGEST_CC ?? "jessica@wineandcanvas.com")
+  .split(",")
+  .map((e) => e.trim())
+  .filter(Boolean);
+// Hour of the day, US Eastern, at or after which the digest goes out.
+export const DIGEST_HOUR_ET = Number(process.env.DIGEST_HOUR_ET ?? 7);

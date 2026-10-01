@@ -276,29 +276,42 @@ export function extractFormContactName(ctx: TicketContext): string | null {
   // Description first: it is the raw form email. The comment body is the
   // markdown-normalised copy of the same thing and is only a fallback.
   for (const source of [ctx.ticket.description ?? "", firstCustomerComment]) {
-    // Shape 1 - Wine and Canvas: "Name: Wendy Fortune" on one line.
-    const inline = source.match(/^[ \t>*]*Name[ \t]*:[ \t]*(.+)$/im);
-    if (inline) {
-      const cleaned = cleanPersonName(inline[1]);
+    const found = extractFormContactNameFromText(source);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * The same parse against one blob of text. Split out so the daily digest
+ * can name people from a ticket's description alone - search results carry
+ * the description but not the requester, and both brands' form subjects are
+ * identical on every ticket ("New Private Event Inquiry"), which makes a
+ * subject-keyed digest unreadable.
+ */
+export function extractFormContactNameFromText(source: string): string | null {
+  // Shape 1 - Wine and Canvas: "Name: Wendy Fortune" on one line.
+  const inline = source.match(/^[ \t>*]*Name[ \t]*:[ \t]*(.+)$/im);
+  if (inline) {
+    const cleaned = cleanPersonName(inline[1]);
+    if (cleaned) return cleaned;
+  }
+  // Shape 2 - Painting and Vino: the label sits alone on its line and the
+  // value follows several blank/tab-only lines later (#81249 "Brenda
+  // Nieto" on file as "Bnieto1"; #81445 "Chanel Richardson" as
+  // "Crichardson"). Verified against live PV form submissions 2026-09-30;
+  // the two shapes are disjoint, so both parsers can run.
+  const lines = source.split(/\r?\n/);
+  const labelIndex = lines.findIndex((l) => /^[ \t>*]*Name[ \t>*]*$/i.test(l));
+  if (labelIndex !== -1) {
+    for (let i = labelIndex + 1; i < Math.min(labelIndex + 10, lines.length); i++) {
+      const raw = lines[i].trim();
+      if (!raw) continue;
+      // An empty Name field would otherwise hand us "Company Name".
+      if (looksLikeFormLabel(raw)) break;
+      const cleaned = cleanPersonName(raw);
       if (cleaned) return cleaned;
-    }
-    // Shape 2 - Painting and Vino: the label sits alone on its line and
-    // the value follows several blank/tab-only lines later (#81249 "Brenda
-    // Nieto" on file as "Bnieto1"; #81445 "Chanel Richardson" as
-    // "Crichardson"). Verified against live PV form submissions
-    // 2026-09-30; the two shapes are disjoint, so both parsers can run.
-    const lines = source.split(/\r?\n/);
-    const labelIndex = lines.findIndex((l) => /^[ \t>*]*Name[ \t>*]*$/i.test(l));
-    if (labelIndex !== -1) {
-      for (let i = labelIndex + 1; i < Math.min(labelIndex + 10, lines.length); i++) {
-        const raw = lines[i].trim();
-        if (!raw) continue;
-        // An empty Name field would otherwise hand us "Company Name".
-        if (looksLikeFormLabel(raw)) break;
-        const cleaned = cleanPersonName(raw);
-        if (cleaned) return cleaned;
-        break;
-      }
+      break;
     }
   }
   return null;

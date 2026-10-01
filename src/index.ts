@@ -1,12 +1,24 @@
 import crypto from "node:crypto";
 import express from "express";
-import { env, loadSharedKnowledgeBase, loadLocationSnippet, RULES_PATH, LOCATIONS_PATH } from "./config.js";
+import {
+  env,
+  loadSharedKnowledgeBase,
+  loadLocationSnippet,
+  RULES_PATH,
+  LOCATIONS_PATH,
+  DIGEST_ENABLED,
+  DIGEST_BRAND_LABEL,
+  DIGEST_TO,
+  DIGEST_CC,
+  DIGEST_HOUR_ET,
+} from "./config.js";
 import { ZendeskClient } from "./zendesk.js";
 import { RulesEngine } from "./rules.js";
 import { LocationResolver } from "./locations.js";
 import { AiDrafter } from "./ai.js";
 import { processTicket } from "./pipeline.js";
 import { runFollowUpSweep } from "./followups.js";
+import { buildDigest, sendDigest, type DigestConfig } from "./digest.js";
 
 const zendesk = new ZendeskClient({
   subdomain: env.zendesk.subdomain,
@@ -101,6 +113,33 @@ app.post("/internal/run-follow-up-sweep", async (_req, res) => {
   }
 });
 
+// --- Daily private-event digest (src/digest.ts) -------------------------
+const digestConfig: DigestConfig = {
+  brandLabel: DIGEST_BRAND_LABEL,
+  to: DIGEST_TO,
+  cc: DIGEST_CC,
+};
+
+// Preview it without sending anything - useful before turning it on, and
+// for checking what a given morning would have looked like.
+app.get("/internal/private-event-digest/preview", async (_req, res) => {
+  try {
+    res.type("text/plain").send(await buildDigest(zendesk, digestConfig));
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// Send one on demand, respecting the once-a-day guard.
+app.post("/internal/private-event-digest/send", async (_req, res) => {
+  try {
+    const id = await sendDigest(zendesk, digestConfig);
+    res.json(id ? { sent: true, ticketId: id } : { sent: false, reason: "already sent today" });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 app.listen(env.port, () => {
   console.log(`Zendesk support AI listening on port ${env.port} (mode=${env.mode}, brand=${env.brand})`);
 });
@@ -140,3 +179,30 @@ async function sweepOnce() {
 // first sweep now happens one interval after boot, and
 // POST /internal/run-follow-up-sweep is still there to trigger one by hand.
 setInterval(sweepOnce, FOLLOW_UP_SWEEP_INTERVAL_MS);
+
+// The digest checks in every 15 minutes and sends once the local Eastern
+// hour has reached DIGEST_HOUR_ET. It does NOT track "have I sent today"
+// in memory: Railway restarts on every deploy, and an in-memory flag would
+// reset and send a second copy. sendDigest asks Zendesk whether today's
+// digest already exists instead, which survives any number of restarts -
+// the same mistake that sent #29001 four follow-ups in 33 minutes.
+const DIGEST_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+
+function easternHour(now = new Date()): number {
+  return Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hour12: false }).format(now)
+  );
+}
+
+async function digestTick() {
+  if (!DIGEST_ENABLED) return;
+  if (easternHour() < DIGEST_HOUR_ET) return;
+  try {
+    const id = await sendDigest(zendesk, digestConfig);
+    if (id) console.log(`[digest] sent as ticket ${id}`);
+  } catch (err) {
+    console.error("[digest] failed:", err);
+  }
+}
+
+setInterval(digestTick, DIGEST_CHECK_INTERVAL_MS);
