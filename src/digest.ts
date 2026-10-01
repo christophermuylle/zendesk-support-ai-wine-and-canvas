@@ -122,9 +122,16 @@ export async function buildDigest(zendesk: IZendeskClient, cfg: DigestConfig, no
   const readyIds = new Set(ready.map((t) => t.id));
 
   const heldRows = held.map((t) => toRow(t, "waiting on a human - did not come through the form, nothing sent"));
-  const freshRows = fresh.map((t) =>
-    toRow(t, t.tags.includes(PRIVATE_EVENT_QUOTE_SENT_TAG) ? "quote sent automatically" : "no quote sent yet")
-  );
+  const freshRows = fresh.map((t) => {
+    if (t.tags.includes(PRIVATE_EVENT_QUOTE_SENT_TAG)) return toRow(t, "quote sent automatically");
+    // A solved or closed ticket was dealt with by a person. Calling that
+    // "no quote sent yet" made Jessica's own answered-and-closed ticket
+    // (#29632, she replied inside an hour) read like a dropped lead -
+    // caught on a live preview 2026-10-01. A digest that cries wolf on
+    // handled tickets is a digest people stop reading.
+    if (t.status === "solved" || t.status === "closed") return toRow(t, "answered by a person, already closed");
+    return toRow(t, "no quote sent - needs a look");
+  });
   const waitingRows = waiting
     .filter((t) => !quietIds.has(t.id) && !readyIds.has(t.id))
     .map((t) => toRow(t, `quoted, no reply yet - ${followUpsSent(t.tags)}`));
