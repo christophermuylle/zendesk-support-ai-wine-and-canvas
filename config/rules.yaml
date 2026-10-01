@@ -146,6 +146,19 @@ rules:
         - "toledo, oh"
         - "south bend, in"
         - "bloomington, in"
+        - "bloomington in"
+        # The rest of the Bloomington licensee's territory, separated out of
+        # Christopher's Southside Indianapolis list on 2026-10-01. He put
+        # Martinsville and Terre Haute here rather than with Southside.
+        # "bedford" and "martinsville" need the state - Bedford is a city in
+        # half a dozen states and a surname, Martinsville likewise. French
+        # Lick and Terre Haute are distinctive enough bare.
+        - "bedford, in"
+        - "bedford in"
+        - "french lick"
+        - "martinsville, in"
+        - "martinsville in"
+        - "terre haute"
         - "minneapolis, mn"
         - "rochester / southeastern minnesota"
         - "rochester, mn"

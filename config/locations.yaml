@@ -108,7 +108,20 @@ locations:
       "fishers, in", "fishers in", "westfield, in", "westfield in",
       "anderson, in", "anderson in", "pendleton, in", "pendleton in",
       "greenwood, in", "greenwood in", "avon, in", "avon in",
-      "plainfield, in", "plainfield in"]
+      "plainfield, in", "plainfield in",
+      # Southside Indianapolis territory (Christopher, 2026-10-01). He
+      # confirmed we keep quoting these at Indianapolis rates rather than
+      # handing them to that licensee, so Greenwood, Avon and Plainfield -
+      # already above - stay put.
+      #
+      # "franklin", "lawrence" and "cumberland" are state-qualified: the first
+      # two are among the commonest personal names in the country and the form
+      # body carries the customer's own name, and Cumberland is far better
+      # known in Maryland. Bargersville, Monrovia, Brownsburg and New
+      # Palestine are distinctive enough bare.
+      "bargersville", "monrovia", "brownsburg", "new palestine",
+      "franklin, in", "franklin in", "lawrence, in", "lawrence in",
+      "cumberland, in", "cumberland in"]
 
   - slug: grand-rapids
     display_name: "Grand Rapids, MI"
