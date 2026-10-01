@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import yaml from "js-yaml";
 import type { TicketContext } from "./types.js";
-import { getTicketMatchText } from "./util.js";
+import { getTicketMatchText, keywordMatches } from "./util.js";
 
 interface RawLocation {
   slug: string;
@@ -40,7 +40,7 @@ export class LocationResolver {
   resolve(ctx: TicketContext): LocationMatch | null {
     const text = getTicketMatchText(ctx);
     for (const loc of this.locations) {
-      if (loc.match_keywords.some((k) => text.includes(k.toLowerCase()))) {
+      if (loc.match_keywords.some((k) => keywordMatches(text, k))) {
         return { slug: loc.slug, displayName: loc.display_name, file: loc.file };
       }
     }

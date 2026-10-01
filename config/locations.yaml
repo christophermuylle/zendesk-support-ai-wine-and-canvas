@@ -45,7 +45,7 @@ locations:
   - slug: tampa
     display_name: "Tampa / St. Pete / Clearwater, FL"
     file: tampa.md
-    match_keywords: ["tampa", "st. pete", "st pete", "clearwater"]
+    match_keywords: ["tampa", "st. pete", "st pete", "st. petersburg", "st petersburg", "saint petersburg", "clearwater"]
 
   - slug: orlando
     display_name: "Orlando, FL"

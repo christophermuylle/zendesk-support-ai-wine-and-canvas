@@ -379,3 +379,36 @@ export function looksMachineDerivedName(name: string | null | undefined, email: 
   if (!localPart) return false;
   return n.toLowerCase().replace(/[^a-z0-9]/g, "") === localPart;
 }
+
+const keywordRegexCache = new Map<string, RegExp>();
+
+/**
+ * Does `text` contain `keyword` as a whole token, rather than as a fragment
+ * of a longer word?
+ *
+ * Location matching used to be a plain `includes`, which is how the
+ * comma-less state variants backfired: "lakeside ca" matched "lakeside
+ * cabin", "orange ca" would have matched "orange canvas", and "westfield in"
+ * would have matched "westfield inn". Each of those mis-routes a real quote
+ * to the wrong market, which for the two-key markets means the wrong PRICE.
+ *
+ * Boundaries are defined on alphanumerics rather than \b so that keywords
+ * carrying punctuation behave predictably - "l.a. county", "opa-locka",
+ * "st. johns, mi", "lauderdale-by-the-sea".
+ *
+ * Note this is deliberately NOT used by the rules engine (src/rules.ts).
+ * Rule keywords legitimately rely on substring behaviour - "cancel" is meant
+ * to catch "cancellation" - so that matcher needs its own audit before it
+ * changes.
+ */
+export function keywordMatches(text: string, keyword: string): boolean {
+  const k = keyword.trim().toLowerCase();
+  if (!k) return false;
+  let re = keywordRegexCache.get(k);
+  if (!re) {
+    const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    re = new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`);
+    keywordRegexCache.set(k, re);
+  }
+  return re.test(text);
+}
