@@ -82,7 +82,28 @@ locations:
   - slug: indianapolis
     display_name: "Indianapolis, IN"
     file: indianapolis.md
-    match_keywords: ["indianapolis", "greenwood, in", "fishers, in", "carmel, in", "westfield, in", "avon, in", "plainfield, in"]
+    # Christopher's Indianapolis territory, 2026-10-01, added to the
+    # suburbs already here (Greenwood, Avon and Plainfield were not on his
+    # list but are served - the approved clarifier copy names Greenwood).
+    #
+    # EVERY qualified entry now carries BOTH the comma and comma-less form.
+    # Only "x, in" existed before, which meant a real ticket reading
+    # "Westfield indiana" matched nothing at all: withStateAbbreviations
+    # turns that into "westfield in", with no comma, so the keyword could
+    # never fire. All seven original suburbs had this bug.
+    #
+    # Qualified rather than bare, deliberately: "anderson", "pendleton" and
+    # "greenwood" are surnames and the form body contains the customer's own
+    # name, so a bare "anderson" would send every Sarah Anderson in the
+    # country to Indianapolis. "avon" is a cosmetics brand, "fishers" is a
+    # plural noun, "westfield" is a shopping centre, "plainfield" exists in
+    # several states.
+    match_keywords: ["indianapolis", "zionsville", "whitestown", "noblesville", "crawfordsville",
+      "lebanon, in", "lebanon in", "carmel, in", "carmel in",
+      "fishers, in", "fishers in", "westfield, in", "westfield in",
+      "anderson, in", "anderson in", "pendleton, in", "pendleton in",
+      "greenwood, in", "greenwood in", "avon, in", "avon in",
+      "plainfield, in", "plainfield in"]
 
   - slug: grand-rapids
     display_name: "Grand Rapids, MI"
