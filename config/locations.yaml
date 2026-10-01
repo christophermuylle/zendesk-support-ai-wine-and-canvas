@@ -55,15 +55,29 @@ locations:
   - slug: fort-lauderdale
     display_name: "Fort Lauderdale / Miami, FL"
     file: fort-lauderdale.md
-    # Miami-Dade towns added 2026-10-01 from Christopher's own list. These
-    # match this slug so the ticket resolves to a location at all, and
-    # resolvePrivateEventLocationKey then sends them to the MIAMI pricing
-    # key (Group B), not Fort Lauderdale's (Group A) - see
-    # MIAMI_DADE_KEYWORDS in src/private-event-quotes.ts. Getting that
-    # wrong under-quotes every one of them by $5-6 a head.
-    match_keywords: ["fort lauderdale", "ft lauderdale", "miami", "kendall", "homestead", "doral",
-      "palmetto bay", "pinecrest", "coral gables", "hialeah", "cutler bay", "cutler ridge",
-      "richmond heights", "naranja", "florida city", "brickell"]
+    # South Florida towns, split between the two pricing keys by proximity
+    # (Christopher, 2026-10-01: "Split these between Fort Lauderdale and
+    # MIAMI. Which ever they are closer to."). Both sets match THIS slug so
+    # the ticket resolves to a location at all; which PRICE they get is
+    # decided by MIAMI_DADE_KEYWORDS in src/private-event-quotes.ts, since
+    # Miami is Group B ($45/$50) and Fort Lauderdale is Group A ($39/$44).
+    #
+    # "sunrise" is deliberately state-qualified: on its own it is far too
+    # common in painting titles and event copy to use as a location match.
+    # A ticket saying only "Sunrise" therefore goes to a human rather than
+    # being matched or mis-priced.
+    match_keywords: ["fort lauderdale", "ft lauderdale", "ft. lauderdale",
+      # Broward -> Fort Lauderdale pricing
+      "hollywood", "pembroke pines", "pembroke park", "coral springs", "miramar", "pompano beach",
+      "davie", "plantation, fl", "plantation fl", "sunrise, fl", "sunrise fl", "deerfield beach",
+      "lauderhill", "lauderdale lakes", "lauderdale-by-the-sea", "weston, fl", "weston fl",
+      "tamarac", "margate", "coconut creek", "oakland park", "hallandale", "north lauderdale",
+      "dania beach", "cooper city", "parkland, fl", "parkland fl", "wilton manors",
+      "lighthouse point", "southwest ranches", "west park, fl", "hillsboro beach",
+      # Miami-Dade -> Miami pricing
+      "miami", "kendall", "homestead", "doral", "palmetto bay", "pinecrest", "coral gables",
+      "hialeah", "cutler bay", "cutler ridge", "richmond heights", "naranja", "florida city",
+      "brickell", "aventura", "key biscayne", "sweetwater, fl", "opa-locka", "opa locka"]
 
   - slug: indianapolis
     display_name: "Indianapolis, IN"

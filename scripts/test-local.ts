@@ -17,6 +17,7 @@ import { LocationResolver } from "../src/locations.js";
 import { AiDrafter, type IAiDrafter } from "../src/ai.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import { processTicket } from "../src/pipeline.js";
+import { resolvePrivateEventLocationKey, getLocationInfo } from "../src/private-event-quotes.js";
 import type { ActionType, DraftResult, RuleDecision, TicketContext, ZendeskComment } from "../src/types.js";
 import { extractFormContactName, firstNameFromFullName, looksMachineDerivedName } from "../src/util.js";
 
@@ -908,6 +909,40 @@ async function main() {
     throw new Error(`ASSERTION FAILED: a Kendall inquiry was quoted Fort Lauderdale's $39/person Group A rate.`);
   }
   console.log("\nRegression check passed: Miami-Dade towns are priced as Miami, not Fort Lauderdale.");
+
+  // --- South Florida split by proximity (2026-10-01) ---
+  // Unit-level, because the per-scenario harness runs one ticket at a time
+  // and there are 40-odd towns. What matters is the PRICE each one lands on.
+  {
+    const sfResolver = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
+    const priceFor = (town: string): number | null => {
+      const text = `Location: ${town}`;
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 90900, description: text, requester_id: CUSTOMER_ID, subject: "Party Request from Wine & Canvas Florida" },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      const loc = sfResolver.resolve(c);
+      const key = loc ? resolvePrivateEventLocationKey(c, loc.slug) : null;
+      return key ? getLocationInfo(key).pricing.standardTiers[0].pricePerPerson : null;
+    };
+    const broward = ["Hollywood, FL", "Pembroke Pines", "Coral Springs", "Miramar", "Pompano Beach", "Davie", "Margate", "Tamarac", "Coconut Creek", "Hallandale Beach", "Dania Beach", "Weston, FL"];
+    const dade = ["Kendall", "Homestead", "Doral", "Palmetto Bay", "Pinecrest", "Coral Gables", "Hialeah", "Cutler Bay", "Brickell", "Aventura", "Key Biscayne"];
+    for (const town of broward) {
+      if (priceFor(town) !== 39) throw new Error(`ASSERTION FAILED: Broward town "${town}" priced at $${priceFor(town)}, expected Fort Lauderdale's $39.`);
+    }
+    for (const town of dade) {
+      if (priceFor(town) !== 45) throw new Error(`ASSERTION FAILED: Miami-Dade town "${town}" priced at $${priceFor(town)}, expected Miami's $45 - Fort Lauderdale's $39 under-quotes it by $6 a head.`);
+    }
+    // "Sunrise" alone is a painting word long before it is a city, so it
+    // must NOT match a location - a human looks at it instead.
+    if (priceFor("Sunrise") !== null) {
+      throw new Error(`ASSERTION FAILED: bare "Sunrise" matched a location. It is too common in painting titles to use unqualified.`);
+    }
+    if (priceFor("Sunrise, FL") !== 39) throw new Error(`ASSERTION FAILED: "Sunrise, FL" should price as Fort Lauderdale.`);
+    console.log(`\nRegression check passed: ${broward.length} Broward towns price as Fort Lauderdale, ${dade.length} Miami-Dade towns as Miami.`);
+  }
 
   // --- Regression checks for the requester-name fix (2026-09-30, #29607) ---
   const nameLabel = "REGRESSION (#29607): the form name beats the name Zendesk invented from the email address";

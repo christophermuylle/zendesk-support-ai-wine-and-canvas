@@ -218,6 +218,11 @@ const MIAMI_DADE_KEYWORDS = [
   "naranja",
   "florida city",
   "brickell",
+  "aventura",
+  "key biscayne",
+  "sweetwater, fl",
+  "opa-locka",
+  "opa locka",
 ] as const;
 
 export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: string): PrivateEventLocationKey | null {
