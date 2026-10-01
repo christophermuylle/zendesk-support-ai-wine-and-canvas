@@ -74,6 +74,11 @@ locations:
       "tamarac", "margate", "coconut creek", "oakland park", "hallandale", "north lauderdale",
       "dania beach", "cooper city", "parkland, fl", "parkland fl", "wilton manors",
       "lighthouse point", "southwest ranches", "west park, fl", "hillsboro beach",
+      # Palm Beach County, added 2026-10-01 on Christopher's say-so - these
+      # are the first two cities north of Broward to be covered. "delray" and
+      # "boca" are how locals actually write them, so both short forms are
+      # here; bare "boca" is not, since on its own it is too thin a match.
+      "boca raton", "boca, fl", "boca fl", "delray beach", "delray",
       # Miami-Dade -> Miami pricing
       "miami", "kendall", "homestead", "doral", "palmetto bay", "pinecrest", "coral gables",
       "hialeah", "cutler bay", "cutler ridge", "richmond heights", "naranja", "florida city",
