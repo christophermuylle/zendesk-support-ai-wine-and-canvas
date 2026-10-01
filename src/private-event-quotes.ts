@@ -192,11 +192,39 @@ export type PrivateEventLocationKey =
  * pricing for yet (shouldn't happen for the 9 managed locations, but fails
  * safe rather than guessing).
  */
+/**
+ * Miami-Dade towns, from Christopher's list 2026-10-01. Anything here is
+ * the MIAMI pricing key (Group B), not Fort Lauderdale's (Group A) - $45 vs
+ * $39 a head standard, so treating Kendall or Doral as Fort Lauderdale
+ * under-quotes the job. "miami" covers Miami Beach, Miami Lakes, South
+ * Miami and Miami-Dade on its own, so they are not listed separately.
+ *
+ * Fort Lauderdale still wins when the ticket names it explicitly - see the
+ * caller below - because a Broward event that happens to mention Miami is a
+ * Broward event.
+ */
+const MIAMI_DADE_KEYWORDS = [
+  "miami",
+  "kendall",
+  "homestead",
+  "doral",
+  "palmetto bay",
+  "pinecrest",
+  "coral gables",
+  "hialeah",
+  "cutler bay",
+  "cutler ridge",
+  "richmond heights",
+  "naranja",
+  "florida city",
+  "brickell",
+] as const;
+
 export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: string): PrivateEventLocationKey | null {
   const text = getTicketMatchText(ctx);
 
   if (matchedSlug === "fort-lauderdale") {
-    const mentionsMiami = text.includes("miami");
+    const mentionsMiami = MIAMI_DADE_KEYWORDS.some((k) => text.includes(k));
     const mentionsFtLauderdale = text.includes("fort lauderdale") || text.includes("ft lauderdale") || text.includes("ft. lauderdale");
     return mentionsMiami && !mentionsFtLauderdale ? "miami" : "fort-lauderdale";
   }

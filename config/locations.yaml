@@ -55,7 +55,15 @@ locations:
   - slug: fort-lauderdale
     display_name: "Fort Lauderdale / Miami, FL"
     file: fort-lauderdale.md
-    match_keywords: ["fort lauderdale", "ft lauderdale", "miami"]
+    # Miami-Dade towns added 2026-10-01 from Christopher's own list. These
+    # match this slug so the ticket resolves to a location at all, and
+    # resolvePrivateEventLocationKey then sends them to the MIAMI pricing
+    # key (Group B), not Fort Lauderdale's (Group A) - see
+    # MIAMI_DADE_KEYWORDS in src/private-event-quotes.ts. Getting that
+    # wrong under-quotes every one of them by $5-6 a head.
+    match_keywords: ["fort lauderdale", "ft lauderdale", "miami", "kendall", "homestead", "doral",
+      "palmetto bay", "pinecrest", "coral gables", "hialeah", "cutler bay", "cutler ridge",
+      "richmond heights", "naranja", "florida city", "brickell"]
 
   - slug: indianapolis
     display_name: "Indianapolis, IN"

@@ -61,6 +61,13 @@ class MockZendeskClient implements IZendeskClient {
     for (const f of opts.fields ?? []) {
       fieldsSetByTicket.set(ticketId, [...(fieldsSetByTicket.get(ticketId) ?? []), f]);
     }
+    // Tags recorded, not just logged. The same gap on `fields` meant the
+    // Reason-for-Contact assertions could never fail; a tag that decides
+    // PRICING deserves better than a console line.
+    for (const tag of opts.addTags ?? []) {
+      tagsAddedByTicket.set(ticketId, [...(tagsAddedByTicket.get(ticketId) ?? []), tag]);
+    }
+    bodiesByTicket.set(ticketId, [...(bodiesByTicket.get(ticketId) ?? []), `${body}\n${opts.htmlBody ?? ""}`]);
     console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}, htmlBody=${opts.htmlBody ? "yes" : "no"}, uploads=${opts.uploadTokens?.length ?? 0}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}):`);
     console.log(`     "${body.replace(/\n/g, "\n     ")}"`);
   }
@@ -99,6 +106,8 @@ class MockZendeskClient implements IZendeskClient {
 // which meant the Reason-for-Contact assertions could never fail - not
 // repeating that mistake with this one.
 const nameCorrections: Array<{ userId: number; name: string }> = [];
+const tagsAddedByTicket = new Map<number, string[]>();
+const bodiesByTicket = new Map<number, string[]>();
 
 // --- Mock AI: used when no ANTHROPIC_API_KEY is set, so the rules engine can be
 // tested offline. Produces an obviously-fake reply that echoes the rule decision. ---
@@ -678,6 +687,25 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
     },
   },
   {
+    // Christopher's Miami-Dade list, 2026-10-01. Kendall was a real
+    // unresolved ticket. The point of the scenario is the PRICE: these towns
+    // must land on the miami key (Group B, $45) and not Fort Lauderdale's
+    // (Group A, $39), which is what adding them to the slug's keywords alone
+    // would have done.
+    label: "Miami-Dade: a Kendall inquiry must be quoted at Miami rates, not Fort Lauderdale rates",
+    ctx: {
+      ticket: {
+        id: 90801, subject: "Party Request from Wine & Canvas Florida",
+        description: "Party Request from  Wine & Canvas Florida\n\nName: Dade Tester\nEmail: dade@example.com\nPreferred Date: 2026-11-15\nGuests: 14\nLocation: Kendall, Florida\nAdditional Info: girls night out with friends",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Dade Tester", email: "dade@example.com" },
+      comments: [makeComment("Party Request from  Wine & Canvas Florida\n\nName: Dade Tester\nEmail: dade@example.com\nPreferred Date: 2026-11-15\nGuests: 14\nLocation: Kendall, Florida\nAdditional Info: girls night out with friends", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
     // REGRESSION (ticket #29607, Wendy Fortune, 2026-09-30): the contact
     // form emails us from a shared address, so Zendesk invented the
     // end-user "Viawendy" from viawendy@gmail.com and the clarifier went
@@ -856,6 +884,30 @@ async function main() {
     );
   }
   console.log("\nRegression check passed: reply-after-quote does not re-send the quote email.");
+
+  // --- Miami-Dade pricing (2026-10-01) ---
+  const dadeLabel = "Miami-Dade: a Kendall inquiry must be quoted at Miami rates, not Fort Lauderdale rates";
+  const dadeResult = resultsByLabel.get(dadeLabel);
+  if (!dadeResult) throw new Error(`ASSERTION FAILED: scenario "${dadeLabel}" did not run`);
+  // matchedLocation is the locations.yaml SLUG's display name ("Fort
+  // Lauderdale / Miami, FL") for both keys, so it cannot tell them apart.
+  // The location tag is what the pricing actually hangs off.
+  // PRIVATE_EVENT_QUOTES_LIVE is off here, so the quote is held as an
+  // internal note rather than sent - and matchedLocation reports the
+  // locations.yaml SLUG name ("Fort Lauderdale / Miami, FL") for both keys,
+  // so it cannot tell them apart. The rendered price can.
+  const dadeText = (bodiesByTicket.get(90801) ?? []).join("\n");
+  if (!dadeText.includes("Pricing for Miami, FL") || !dadeText.includes("$45/person")) {
+    throw new Error(
+      `ASSERTION FAILED: a Kendall inquiry was not priced as Miami. Expected "Pricing for Miami, FL" and ` +
+        `"$45/person" in the quote; Fort Lauderdale's Group A rate is $39, so getting this wrong under-quotes ` +
+        `every Miami-Dade job by $6 a head. Got:\n${dadeText.slice(0, 600)}`
+    );
+  }
+  if (dadeText.includes("$39/person")) {
+    throw new Error(`ASSERTION FAILED: a Kendall inquiry was quoted Fort Lauderdale's $39/person Group A rate.`);
+  }
+  console.log("\nRegression check passed: Miami-Dade towns are priced as Miami, not Fort Lauderdale.");
 
   // --- Regression checks for the requester-name fix (2026-09-30, #29607) ---
   const nameLabel = "REGRESSION (#29607): the form name beats the name Zendesk invented from the email address";
