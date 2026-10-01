@@ -87,7 +87,24 @@ locations:
   - slug: grand-rapids
     display_name: "Grand Rapids, MI"
     file: grand-rapids.md
-    match_keywords: ["grand rapids"]
+    # Christopher's Grand Rapids territory, 2026-10-01. Six are
+    # state-qualified because the matcher is a plain substring test: "ada" is
+    # inside "Canada" and "Nevada", "wyoming" is a whole state, "holland" is
+    # a country and a surname, "rockford" is better known in Illinois,
+    # "greenville" exists in a dozen states, and "hopkins" is a name.
+    #
+    # Paw Paw and Hastings sit closer to Kalamazoo and Lansing than to Grand
+    # Rapids, and both of those markets are excluded by
+    # out_of_scope_location - but Christopher listed them as Grand Rapids
+    # territory, and grand-rapids is matched BEFORE kalamazoo and lansing in
+    # this file, so they quote as Grand Rapids. That ordering is what makes
+    # it work; do not move this block below them.
+    match_keywords: ["grand rapids", "byron center", "caledonia", "kentwood", "grandville",
+      "grand haven", "cedar springs", "fremont, mi", "fremont mi", "newaygo", "hudsonville",
+      "allendale", "saugatuck", "middleville", "hastings, mi", "hastings mi", "wayland",
+      "zeeland", "paw paw",
+      "ada, mi", "ada mi", "wyoming, mi", "wyoming mi", "holland, mi", "holland mi",
+      "rockford, mi", "rockford mi", "greenville, mi", "greenville mi", "hopkins, mi", "hopkins mi"]
 
   - slug: kalamazoo
     display_name: "Kalamazoo, MI"
