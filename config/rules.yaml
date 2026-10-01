@@ -171,9 +171,55 @@ rules:
         # Lansing/Kalamazoo ticket and adjust these phrases if the wording
         # differs, same as the other TODO on this rule.
         - "lansing, mi"
+        - "lansing mi"
         - "greater lansing"
+        - "east lansing"
         - "kalamazoo, mi"
+        - "kalamazoo mi"
         - "greater kalamazoo"
+        # The rest of the Greater Lansing / Mid Michigan territory
+        # (Christopher, 2026-10-01). Until this list existed the rule only
+        # caught "lansing, mi" and "greater lansing": 11 tickets had ever
+        # been tagged out_of_scope_location while 96 mentioned Okemos and 14
+        # mentioned Holt, so most of this licensee's area was being answered
+        # by us instead of handed to them.
+        #
+        # QUALIFICATION MATTERS MORE HERE THAN ANYWHERE ELSE in this file. A
+        # false positive on a market rule sends someone a clarifying question;
+        # a false positive HERE makes us stop answering a real customer. The
+        # form body carries the customer's own name, so bare "leslie",
+        # "mason", "perry", "charlotte", "jackson", "holt" or "dewitt" would
+        # silently refuse service to anyone called that, anywhere. "portland"
+        # and "charlotte" also point at far better-known cities in Oregon and
+        # North Carolina. All of those therefore require the state.
+        - "okemos"
+        - "owosso"
+        - "williamston, mi"
+        - "williamston mi"
+        - "laingsburg"
+        - "grand ledge"
+        - "eaton rapids"
+        - "holt, mi"
+        - "holt mi"
+        - "mason, mi"
+        - "mason mi"
+        - "dewitt, mi"
+        - "dewitt mi"
+        - "de witt, mi"
+        - "portland, mi"
+        - "portland mi"
+        - "st. johns, mi"
+        - "st. johns mi"
+        - "st johns, mi"
+        - "st johns mi"
+        - "perry, mi"
+        - "perry mi"
+        - "leslie, mi"
+        - "leslie mi"
+        - "jackson, mi"
+        - "jackson mi"
+        - "charlotte, mi"
+        - "charlotte mi"
     action: no_action
     force_human_review: false
     add_tags: ["out_of_scope_location"]
