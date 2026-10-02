@@ -40,7 +40,26 @@ locations:
     # standard templates group "Naples/Bonita Springs" together for
     # pricing (see src/private-event-quotes.ts), so a ticket that only
     # says "Bonita Springs" needs to resolve to this location too.
-    match_keywords: ["fort myers", "ft myers", "cape coral", "naples", "bonita springs"]
+    # Lee County communities added 2026-10-02 (Christopher's Fort Myers list).
+    # Naples itself is Collier County and stays here too, because this one slug
+    # feeds TWO pricing keys - see NAPLES_SIDE_KEYWORDS in
+    # src/private-event-quotes.ts, which decides $45 Naples vs $39 Fort Myers.
+    #
+    # Fort Myers Beach and North Fort Myers need no entries: they contain
+    # "fort myers", which now matches as a whole token.
+    #
+    # "alva" and "pineland" take the state - Alva is a personal name and short
+    # enough to be noise, "pineland" reads as a description. "boca grande" is
+    # safe even though Boca Raton is on the fort-lauderdale slug: this slug is
+    # matched first and neither string contains the other.
+    match_keywords: ["fort myers", "ft myers", "cape coral", "naples", "bonita springs",
+      # Collier County, Naples side (Christopher, 2026-10-02). Bare
+      # "everglades" is left out - it is a national park and a stock painting
+      # subject; only "everglades city" and the state-qualified forms are in.
+      "marco island", "everglades city", "everglades, fl", "everglades fl",
+      "boca grande", "bokeelia", "captiva", "estero", "lehigh acres", "sanibel",
+      "saint james city", "st. james city", "st james city",
+      "alva, fl", "alva fl", "pineland, fl", "pineland fl"]
 
   - slug: tampa
     display_name: "Tampa / St. Pete / Clearwater, FL"

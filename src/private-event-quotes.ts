@@ -26,7 +26,7 @@
 // ****************************************************************************
 
 import type { TicketContext } from "./types.js";
-import { extractFormContactName, firstNameFromFullName, getTicketMatchText } from "./util.js";
+import { extractFormContactName, firstNameFromFullName, getTicketMatchText, keywordMatches } from "./util.js";
 
 export type PrivateEventCategory = "kids" | "fundraiser" | "corporate" | "standard";
 
@@ -203,6 +203,52 @@ export type PrivateEventLocationKey =
  * caller below - because a Broward event that happens to mention Miami is a
  * Broward event.
  */
+/** Broward anchors: when one of these is named, the ticket is Fort Lauderdale even if Miami is mentioned too. */
+const BROWARD_ANCHOR_KEYWORDS = ["fort lauderdale", "ft lauderdale", "ft. lauderdale"] as const;
+
+/**
+ * Towns priced with NAPLES (Group B, $45/$50) rather than Fort Myers (Group A,
+ * $39/$44). Both sit behind the single fort-myers slug, so this list is what
+ * decides the price.
+ *
+ * Bonita Springs has always been here - the corporate and standard templates
+ * group "Orlando, Naples/Bonita Springs, and Miami" as one tier.
+ *
+ * ESTERO IS DELIBERATELY NOT HERE. It sits between the two, ~15 miles from
+ * Fort Myers and ~22 from Naples, with Bonita Springs in between - so Fort
+ * Myers on proximity, and the cheaper of the two if the call is wrong. Moving
+ * it is one line; flagged to Christopher 2026-10-02.
+ */
+const NAPLES_SIDE_KEYWORDS = [
+  "naples",
+  "bonita springs",
+  // Collier County, confirmed by Christopher 2026-10-02 ("Naples: Naples,
+  // Marco Island, Everglades").
+  "marco island",
+  "everglades city",
+  "everglades, fl",
+  "everglades fl",
+] as const;
+
+/** Fort Myers anchors: these win over the Naples list when a ticket names both. */
+const FORT_MYERS_ANCHOR_KEYWORDS = [
+  "fort myers",
+  "ft myers",
+  "ft. myers",
+  "cape coral",
+  "sanibel",
+  "captiva",
+  "boca grande",
+  "bokeelia",
+  "pineland",
+  "saint james city",
+  "st. james city",
+  "st james city",
+  "lehigh acres",
+  "alva",
+  "estero",
+] as const;
+
 const MIAMI_DADE_KEYWORDS = [
   "miami",
   "kendall",
@@ -229,21 +275,17 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
   const text = getTicketMatchText(ctx);
 
   if (matchedSlug === "fort-lauderdale") {
-    const mentionsMiami = MIAMI_DADE_KEYWORDS.some((k) => text.includes(k));
-    const mentionsFtLauderdale = text.includes("fort lauderdale") || text.includes("ft lauderdale") || text.includes("ft. lauderdale");
+    const mentionsMiami = MIAMI_DADE_KEYWORDS.some((k) => keywordMatches(text, k));
+    const mentionsFtLauderdale = BROWARD_ANCHOR_KEYWORDS.some((k) => keywordMatches(text, k));
     return mentionsMiami && !mentionsFtLauderdale ? "miami" : "fort-lauderdale";
   }
   if (matchedSlug === "fort-myers") {
-    // "bonita springs" added 2026-09-21 - the corporate/standard templates
-    // both list "Orlando, Naples/Bonita Springs, and Miami" as one pricing
-    // group, so Bonita Springs needs to resolve to the "naples" pricing
-    // key too. NOTE: locations.yaml's fort-myers match_keywords doesn't
-    // have "bonita springs" yet, so a ticket that ONLY says "Bonita
-    // Springs" (no "Fort Myers"/"Naples"/"Cape Coral") won't match a
-    // location at all upstream and will never reach this function -
-    // flagged to Christopher, worth adding there too.
-    const mentionsNaples = text.includes("naples") || text.includes("bonita springs");
-    const mentionsFtMyers = text.includes("fort myers") || text.includes("ft myers") || text.includes("cape coral");
+    // One slug, two prices. Naples side is Group B ($45/$50); Fort Myers side
+    // is Group A ($39/$44), so a town in the wrong list is a $6-a-head error.
+    // Fort Myers wins when a ticket names both, because a Fort Myers event
+    // that mentions Naples in passing is still a Fort Myers event.
+    const mentionsNaples = NAPLES_SIDE_KEYWORDS.some((k) => keywordMatches(text, k));
+    const mentionsFtMyers = FORT_MYERS_ANCHOR_KEYWORDS.some((k) => keywordMatches(text, k));
     return mentionsNaples && !mentionsFtMyers ? "naples" : "fort-myers";
   }
   if (

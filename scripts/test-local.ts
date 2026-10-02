@@ -910,6 +910,49 @@ async function main() {
   }
   console.log("\nRegression check passed: Miami-Dade towns are priced as Miami, not Fort Lauderdale.");
 
+  // --- Fort Myers vs Naples pricing split (2026-10-02) ---
+  // The riskiest split in the file: one locations.yaml slug feeds TWO pricing
+  // keys, so a town in the wrong list is a $6-a-head error on every quote
+  // rather than a cosmetic one. Asserting the PRICE, not the key name.
+  {
+    const lcResolver = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
+    const priceFor = (text: string): number | null => {
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91100, description: text, requester_id: CUSTOMER_ID, subject: "Party Request from Wine & Canvas Florida" },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      const loc = lcResolver.resolve(c);
+      const key = loc ? resolvePrivateEventLocationKey(c, loc.slug) : null;
+      return key ? getLocationInfo(key).pricing.standardTiers[0].pricePerPerson : null;
+    };
+    const fortMyersSide = ["Fort Myers", "Fort Myers Beach", "North Fort Myers", "Cape Coral", "Sanibel", "Captiva", "Boca Grande", "Bokeelia", "Pineland, FL", "Saint James City", "Lehigh Acres", "Alva, FL", "Estero"];
+    const naplesSide = ["Naples", "Bonita Springs", "Marco Island", "Everglades City"];
+    for (const town of fortMyersSide) {
+      const p = priceFor(`Location: ${town}`);
+      if (p !== 39) throw new Error(`ASSERTION FAILED: "${town}" priced at $${p}, expected Fort Myers' $39. Naples is $45 - this slug feeds two pricing keys.`);
+    }
+    for (const town of naplesSide) {
+      const p = priceFor(`Location: ${town}`);
+      if (p !== 45) throw new Error(`ASSERTION FAILED: "${town}" priced at $${p}, expected Naples' $45. Fort Myers' $39 under-quotes it by $6 a head.`);
+    }
+    // Fort Myers wins when a ticket names both - a Fort Myers event that
+    // mentions Naples in passing is still a Fort Myers event.
+    if (priceFor("Location: Fort Myers - some guests driving from Naples") !== 39) {
+      throw new Error(`ASSERTION FAILED: a ticket naming both Fort Myers and Naples must price as Fort Myers.`);
+    }
+    // Bare "everglades" is a national park and a painting subject.
+    if (priceFor("Additional Info: an everglades sunset design") !== null) {
+      throw new Error(`ASSERTION FAILED: "an everglades sunset design" matched a location. Bare "everglades" must not be a location keyword.`);
+    }
+    // Boca Grande (Lee County) and Boca Raton (Broward) must not be confused.
+    if (priceFor("Location: Boca Raton") !== 39 || priceFor("Location: Boca Grande") !== 39) {
+      throw new Error(`ASSERTION FAILED: Boca Raton and Boca Grande must both price at $39, via Fort Lauderdale and Fort Myers respectively.`);
+    }
+    console.log(`\nRegression check passed: ${fortMyersSide.length} Fort Myers-side towns price at $39, ${naplesSide.length} Naples-side at $45.`);
+  }
+
   // --- South Florida split by proximity (2026-10-01) ---
   // Unit-level, because the per-scenario harness runs one ticket at a time
   // and there are 40-odd towns. What matters is the PRICE each one lands on.
