@@ -45,7 +45,35 @@ locations:
   - slug: tampa
     display_name: "Tampa / St. Pete / Clearwater, FL"
     file: tampa.md
-    match_keywords: ["tampa", "st. pete", "st pete", "st. petersburg", "st petersburg", "saint petersburg", "clearwater"]
+    # Hillsborough County communities added 2026-10-02 (Christopher's Tampa
+    # Bay list). St. Pete and Clearwater on the Pinellas side were already
+    # here.
+    #
+    # "brandon" and "riverview" take the state. Brandon is one of the
+    # commonest first names in the country and Riverview is a stock venue
+    # name, and the form body carries the customer's own name - bare, either
+    # would route strangers to Tampa.
+    #
+    # "University" (the CDP by USF) is deliberately NOT here in any form.
+    # Bare it is an ordinary word that turns up in half our inquiries. Even
+    # "university, fl" would match the tail of a signature like "Nova
+    # Southeastern University, FL 33314" - which is Broward, not Tampa. Only
+    # the unambiguous "university area" is included; anyone in that CDP almost
+    # always writes Tampa anyway.
+    #
+    # Town 'n' Country is spelled four ways in the wild, including with a
+    # curly apostrophe, so all of them are listed. Bare "town and country" is
+    # left out - it is a stock shopping-centre name.
+    #
+    # Egypt Lake-Leto is listed whole and as "egypt lake". Bare "leto" is a
+    # surname and stays out.
+    match_keywords: ["tampa", "st. pete", "st pete", "st. petersburg", "st petersburg",
+      "saint petersburg", "clearwater",
+      "plant city", "valrico", "carrollwood", "lake magdalene", "university area",
+      "egypt lake-leto", "egypt lake",
+      "town 'n' country", "town \u2018n\u2019 country", "town \u2019n\u2019 country",
+      "town n country", "town 'n country", "town and country, fl", "town and country fl",
+      "brandon, fl", "brandon fl", "riverview, fl", "riverview fl"]
 
   - slug: orlando
     display_name: "Orlando, FL"
