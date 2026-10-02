@@ -126,24 +126,41 @@ locations:
   - slug: grand-rapids
     display_name: "Grand Rapids, MI"
     file: grand-rapids.md
-    # Christopher's Grand Rapids territory, 2026-10-01. Six are
-    # state-qualified because the matcher is a plain substring test: "ada" is
-    # inside "Canada" and "Nevada", "wyoming" is a whole state, "holland" is
-    # a country and a surname, "rockford" is better known in Illinois,
-    # "greenville" exists in a dozen states, and "hopkins" is a name.
+    # Christopher's Grand Rapids territory, 2026-10-02: Grand Rapids & North,
+    # Muskegon & Surrounding, and the Spring Lake / Grand Haven / Lakeshore
+    # group, plus Shelby, Hart and Pentwater from his unassigned "Inland /
+    # Northern Expansion" list - those three sit up the lakeshore from
+    # Muskegon, which is Grand Rapids territory. The rest of that group went
+    # to Cadillac.
     #
-    # Paw Paw and Hastings sit closer to Kalamazoo and Lansing than to Grand
-    # Rapids, and both of those markets are excluded by
-    # out_of_scope_location - but Christopher listed them as Grand Rapids
-    # territory, and grand-rapids is matched BEFORE kalamazoo and lansing in
-    # this file, so they quote as Grand Rapids. That ordering is what makes
-    # it work; do not move this block below them.
-    match_keywords: ["grand rapids", "byron center", "caledonia", "kentwood", "grandville",
-      "grand haven", "cedar springs", "fremont, mi", "fremont mi", "newaygo", "hudsonville",
-      "allendale", "saugatuck", "middleville", "hastings, mi", "hastings mi", "wayland",
-      "zeeland", "paw paw",
-      "ada, mi", "ada mi", "wyoming, mi", "wyoming mi", "holland, mi", "holland mi",
-      "rockford, mi", "rockford mi", "greenville, mi", "greenville mi", "hopkins, mi", "hopkins mi"]
+    # East Grand Rapids, North Muskegon and Muskegon Heights need no entry of
+    # their own: they contain "grand rapids" and "muskegon", which now match
+    # as whole tokens.
+    #
+    # 18 names are state-qualified. Bare, each is a word before it is a town:
+    # "walker", "grant", "hart" and "lowell" are verbs or surnames and the form
+    # body carries the customer's own name; "white cloud" and "spring lake"
+    # read as painting titles; "wyoming" is a state; "holland" a country;
+    # "douglas", "shelby" and "baldwin" are first names; "sparta",
+    # "whitehall", "rockford", "greenville" and "hastings" are better known
+    # elsewhere.
+    #
+    # Paw Paw and Hastings are nearer Kalamazoo and Lansing, both of which are
+    # excluded - but Christopher placed them here, and grand-rapids is matched
+    # BEFORE kalamazoo and lansing in this file. That ordering is load-bearing.
+    match_keywords: [
+      "grand rapids", "byron center", "caledonia", "kentwood", "grandville", "grand haven",
+      "cedar springs", "newaygo", "hudsonville", "allendale", "saugatuck", "middleville", "wayland",
+      "zeeland", "paw paw", "jenison", "coopersville", "belding", "comstock park", "muskegon",
+      "norton shores", "roosevelt park", "fruitport", "montague", "ravenna", "holton", "twin lake",
+      "hesperia", "ferrysburg", "west olive", "south haven", "pentwater", "ada, mi", "ada mi",
+      "wyoming, mi", "wyoming mi", "holland, mi", "holland mi", "rockford, mi", "rockford mi",
+      "greenville, mi", "greenville mi", "hopkins, mi", "hopkins mi", "hastings, mi", "hastings mi",
+      "fremont, mi", "fremont mi", "walker, mi", "walker mi", "lowell, mi", "lowell mi", "sparta, mi",
+      "sparta mi", "whitehall, mi", "whitehall mi", "white cloud, mi", "white cloud mi", "grant, mi",
+      "grant mi", "spring lake, mi", "spring lake mi", "douglas, mi", "douglas mi", "hart, mi",
+      "hart mi", "shelby, mi", "shelby mi"
+    ]
 
   - slug: kalamazoo
     display_name: "Kalamazoo, MI"
@@ -158,4 +175,21 @@ locations:
   - slug: cadillac
     display_name: "Cadillac, MI"
     file: cadillac.md
-    match_keywords: ["cadillac"]
+    # Christopher's Cadillac & North list, 2026-10-02, plus the northern half
+    # of his unassigned "Inland / Northern Expansion" group - Big Rapids,
+    # Reed City, Evart, Baldwin, Ludington, Scottville, Manistee and Onekama
+    # are all nearer Cadillac than Grand Rapids.
+    #
+    # "lake city", "marion" and "baldwin" take the state: there is a Lake City
+    # in Florida and a Marion in Indiana, both of which this brand serves, and
+    # Baldwin is a common surname. Tustin stays bare here - Tustin, CA belongs
+    # to Painting and Vino, which is a separate config, so the two cannot
+    # collide.
+    #
+    # Cadillac is the one market carrying an explicit travel fee, which
+    # matters now that Traverse City and Manistee are in range.
+    match_keywords: [
+      "cadillac", "manton", "mcbain", "mesick", "traverse city", "kingsley", "kalkaska", "big rapids",
+      "reed city", "evart", "ludington", "scottville", "manistee", "onekama", "tustin",
+      "lake city, mi", "lake city mi", "marion, mi", "marion mi", "baldwin, mi", "baldwin mi"
+    ]
