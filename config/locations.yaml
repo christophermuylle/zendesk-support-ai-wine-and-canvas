@@ -109,7 +109,7 @@ locations:
     # The rest are qualified because bare they read as painting titles or
     # better-known places elsewhere: "winter garden", "winter park" (Colorado),
     # "bay lake", "edgewood".
-    match_keywords: ["orlando", "apopka", "lake buena vista", "maitland", "ocoee", "eatonville",
+    match_keywords: ["orlando", "apopka", "kissimmee", "lake buena vista", "maitland", "ocoee", "eatonville",
       "windermere",
       "bay lake, fl", "bay lake fl", "belle isle, fl", "belle isle fl",
       "edgewood, fl", "edgewood fl", "winter garden, fl", "winter garden fl",
