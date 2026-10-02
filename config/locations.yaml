@@ -50,7 +50,23 @@ locations:
   - slug: orlando
     display_name: "Orlando, FL"
     file: orlando.md
-    match_keywords: ["orlando"]
+    # All 13 municipalities in Orange County, FL (Christopher, 2026-10-02).
+    #
+    # Six take the state, and two of those would have caused real damage bare:
+    # "oakland" matches inside "Oakland Park", which is a BROWARD city on the
+    # fort-lauderdale slug - and orlando is matched BEFORE fort-lauderdale in
+    # this file, so bare "oakland" would have quietly stolen Oakland Park's
+    # tickets and quoted them at Orlando's higher Group B rate. "belle isle"
+    # is also a well-known park in Detroit, and this brand serves Michigan.
+    #
+    # The rest are qualified because bare they read as painting titles or
+    # better-known places elsewhere: "winter garden", "winter park" (Colorado),
+    # "bay lake", "edgewood".
+    match_keywords: ["orlando", "apopka", "lake buena vista", "maitland", "ocoee", "eatonville",
+      "windermere",
+      "bay lake, fl", "bay lake fl", "belle isle, fl", "belle isle fl",
+      "edgewood, fl", "edgewood fl", "winter garden, fl", "winter garden fl",
+      "winter park, fl", "winter park fl", "oakland, fl", "oakland fl"]
 
   - slug: fort-lauderdale
     display_name: "Fort Lauderdale / Miami, FL"
