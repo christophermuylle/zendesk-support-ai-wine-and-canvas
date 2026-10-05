@@ -66,13 +66,58 @@ const CORPORATE_KEYWORDS = [
 const FUNDRAISER_KEYWORDS = ["fundraiser", "charity", "nonprofit", "non-profit", "rescue", "donate", "donation", "cause"];
 
 // Same "wide net" approval as fundraiser - starting set, not exhaustive.
-const KIDS_KEYWORDS = ["kids party", "kid's party", "kids' party", "birthday", "children", "sweet 16", "sweet sixteen"];
+// NO bare "birthday" here. It was in this list until 2026-10-05, and because
+// classifyPrivateEvent checks kids FIRST it meant every birthday inquiry got
+// the Cookies & Canvas quote whatever the guest's age - Christopher reported a
+// 55-year-old's party being quoted as a kids' event (#29784). It also made
+// KIDS_AGE_PATTERN below dead code: that regex exists precisely so an adult
+// milestone birthday is not miscategorised, and it never got the chance to
+// run. Adult birthdays fall through to STANDARD_KEYWORDS, which already
+// listed "birthday".
+//
+// Kid birthdays are caught two ways instead: the explicit phrases below, and
+// KIDS_AGE_PATTERN for a stated age of 16 or under. Painting and Vino never
+// had the bare word and its phrase list is the model for this one.
+const KIDS_KEYWORDS = [
+  "kids party",
+  "kid's party",
+  "kids' party",
+  "children's party",
+  "childrens party",
+  "kids birthday",
+  "kid's birthday",
+  "kids' birthday",
+  "children's birthday",
+  "childrens birthday",
+  "child's birthday",
+  "childs birthday",
+  "son's birthday",
+  "sons birthday",
+  "daughter's birthday",
+  "daughters birthday",
+  "children",
+  "sweet 16",
+  "sweet sixteen",
+];
 
 // Catches "turning 10", "10th birthday", "10 year old" / "10-year-old" for
 // ages 16 and under (Christopher: kids template covers "ages 16 and
 // under"). Deliberately only matches 1-16 so a "17th birthday" or an adult
 // milestone birthday doesn't get miscategorized as the kids template.
-const KIDS_AGE_PATTERN = /\b(?:turning\s+)?(1[0-6]|[1-9])(?:st|nd|rd|th)?\s*[- ]?(?:years?|yrs?)?[- ]?(?:old\b|birthday\b)/i;
+// Two shapes, because the first one alone missed the commonest wording.
+//
+//  (a) "turning 10", "turns 8" - the age with NOTHING after it. The original
+//      pattern had an optional "turning" prefix but still required "old" or
+//      "birthday" to follow the number, so "the birthday girl will be turning
+//      10" (#29575) never matched it. That went unnoticed while bare
+//      "birthday" was in KIDS_KEYWORDS and caught everything.
+//  (b) "10 year old", "10-year-old", "8th birthday", "10 yrs old".
+//
+// Both capped at 16, per Christopher: the kids template covers ages 16 and
+// under. "turning 17", "21st birthday" and "turning 55" deliberately do not
+// match.
+const KIDS_AGE_PATTERN =
+  /\b(?:turning|turns)\s+(?:1[0-6]|[1-9])\b|\b(?:1[0-6]|[1-9])(?:st|nd|rd|th)?\s*[- ]?(?:years?|yrs?)?[- ]?(?:old\b|birthday\b)/i;
 
 /** True if the inquiry mentions "donate"/"donation" - triggers the fundraiser template's gift-certificate-donation disclaimer prefix (see FUNDRAISER_DONATION_PREFIX below). */
 export function mentionsGiftDonation(ctx: TicketContext): boolean {

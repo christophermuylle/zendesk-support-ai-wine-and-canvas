@@ -17,7 +17,7 @@ import { LocationResolver } from "../src/locations.js";
 import { AiDrafter, type IAiDrafter } from "../src/ai.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import { processTicket } from "../src/pipeline.js";
-import { resolvePrivateEventLocationKey, getLocationInfo } from "../src/private-event-quotes.js";
+import { resolvePrivateEventLocationKey, getLocationInfo, classifyPrivateEvent } from "../src/private-event-quotes.js";
 import type { ActionType, DraftResult, RuleDecision, TicketContext, ZendeskComment } from "../src/types.js";
 import { extractFormContactName, firstNameFromFullName, looksMachineDerivedName } from "../src/util.js";
 
@@ -909,6 +909,53 @@ async function main() {
     throw new Error(`ASSERTION FAILED: a Kendall inquiry was quoted Fort Lauderdale's $39/person Group A rate.`);
   }
   console.log("\nRegression check passed: Miami-Dade towns are priced as Miami, not Fort Lauderdale.");
+
+  // --- Adult birthdays must not get the kids template (2026-10-05, #29784) ---
+  // KIDS_KEYWORDS contained the bare word "birthday", and the classifier
+  // checks kids FIRST, so every birthday inquiry got Cookies & Canvas
+  // whatever the age. Melissa Marx answered the clarifier with "55th
+  // Birthday/Halloween" and was sent the kids quote. It also made
+  // KIDS_AGE_PATTERN dead code - that regex exists to cap kids at 16.
+  {
+    const classify = (text: string): string | null => {
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91200, description: text, requester_id: CUSTOMER_ID },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      return classifyPrivateEvent(c);
+    };
+    const adult: Array<[string, string | null]> = [
+      ["55th Birthday/Halloween", "standard"],                 // #29784, verbatim
+      ["Additional Info: 40th birthday celebration", "standard"],
+      ["Additional Info: birthday party for about 15 of us", "standard"],
+      ["Additional Info: her 17th birthday", "standard"],
+      ["Additional Info: 21st birthday", "standard"],
+    ];
+    for (const [text, want] of adult) {
+      const got = classify(text);
+      if (got !== want) throw new Error(`ASSERTION FAILED: "${text}" classified as "${got}", expected "${want}". An adult birthday must never get the Cookies & Canvas kids template.`);
+    }
+    const kids: string[] = [
+      "Additional Info: 10 year old girl birthday",             // #29638
+      "Additional Info: The birthday girl will be turning 10",  // #29575
+      "Additional Info: she turns 8 that week",
+      "Additional Info: her 8th birthday",
+      "Additional Info: my daughter's birthday",
+      "Additional Info: a kids party",
+      "Additional Info: sweet 16",
+      "Additional Info: he is turning 16",
+    ];
+    for (const text of kids) {
+      const got = classify(text);
+      if (got !== "kids") throw new Error(`ASSERTION FAILED: "${text}" classified as "${got}", expected "kids".`);
+    }
+    // 17 and over is not a kids event, and an address number is not an age.
+    if (classify("Additional Info: he is turning 17") === "kids") throw new Error(`ASSERTION FAILED: "turning 17" must not be kids - the template covers 16 and under.`);
+    if (classify("Location: 1701 10 mile rd ne") !== null) throw new Error(`ASSERTION FAILED: a street number must not be read as a child's age.`);
+    console.log(`\nRegression check passed: ${adult.length} adult birthdays classify as standard, ${kids.length} kid birthdays as kids.`);
+  }
 
   // --- Fort Myers vs Naples pricing split (2026-10-02) ---
   // The riskiest split in the file: one locations.yaml slug feeds TWO pricing
