@@ -58,12 +58,35 @@ const CORPORATE_KEYWORDS = [
   "team bonding",
   "company event",
   "corporate",
+  "employee",
+  "coworker",
 ];
 
 // Christopher approved this starting set ("Yes, cast the similar wide net
 // for both") - not an exhaustive confirmed list, broaden as real tickets
 // reveal gaps, same as the out_of_scope_location wording.
-const FUNDRAISER_KEYWORDS = ["fundraiser", "charity", "nonprofit", "non-profit", "rescue", "donate", "donation", "cause"];
+// The inflected forms at the end were supplied accidentally by substring
+// matching. Now that this list is matched as whole tokens they must be
+// spelled out, or "donations" and "fundraising" would stop matching.
+const FUNDRAISER_KEYWORDS = [
+  "fundraiser",
+  "charity",
+  "nonprofit",
+  "non-profit",
+  "rescue",
+  "donate",
+  "donation",
+  "cause",
+  "fundraisers",
+  "fundraising",
+  "charities",
+  "nonprofits",
+  "rescues",
+  "donates",
+  "donating",
+  "donated",
+  "donations",
+];
 
 // Same "wide net" approval as fundraiser - starting set, not exhaustive.
 // NO bare "birthday" here. It was in this list until 2026-10-05, and because
@@ -164,6 +187,16 @@ const STANDARD_KEYWORDS = [
   "couples",
   "friends",
   "family",
+  "celebrations",
+  "celebrate",
+  "resident",
+  "couple",
+  "friend",
+  "families",
+  "neighborhoods",
+  "anniversaries",
+  "reunions",
+  "graduations",
 ];
 
 /**
@@ -180,19 +213,36 @@ const STANDARD_KEYWORDS = [
  * arrive with nothing to classify on. Returning null lets the pipeline ask
  * rather than guess - see src/private-event-clarifiers.ts.
  */
+/**
+ * WHOLE-TOKEN matching, not substring - keywordMatches(), not includes().
+ *
+ * With plain substring matching these lists misfired on ordinary English:
+ *   "cause"   matched "because"   -> any inquiry saying "because" was a FUNDRAISER
+ *   "company" matched "accompany" -> "my husband will accompany me" was CORPORATE
+ *   "staff"   matched "staffing"  -> "we are staffing it ourselves" was CORPORATE
+ *
+ * The first is the serious one. "because" is ordinary writing, and a false
+ * fundraiser sends donation mechanics to someone throwing a birthday party.
+ * Found 2026-10-05 auditing the categories after the kids-template bug
+ * (#29784) - the same root cause as that one: a keyword that matches far more
+ * than it looks like it does.
+ *
+ * Whole-token matching means inflections no longer come free, so "donations",
+ * "fundraising" and the rest are spelled out in the lists above.
+ */
 export function classifyPrivateEvent(ctx: TicketContext): PrivateEventCategory | null {
   const text = getTicketMatchText(ctx);
 
-  if (KIDS_KEYWORDS.some((k) => text.includes(k)) || KIDS_AGE_PATTERN.test(text)) {
+  if (KIDS_KEYWORDS.some((k) => keywordMatches(text, k)) || KIDS_AGE_PATTERN.test(text)) {
     return "kids";
   }
-  if (FUNDRAISER_KEYWORDS.some((k) => text.includes(k))) {
+  if (FUNDRAISER_KEYWORDS.some((k) => keywordMatches(text, k))) {
     return "fundraiser";
   }
-  if (CORPORATE_KEYWORDS.some((k) => text.includes(k))) {
+  if (CORPORATE_KEYWORDS.some((k) => keywordMatches(text, k))) {
     return "corporate";
   }
-  if (STANDARD_KEYWORDS.some((k) => text.includes(k))) {
+  if (STANDARD_KEYWORDS.some((k) => keywordMatches(text, k))) {
     return "standard";
   }
   return null;

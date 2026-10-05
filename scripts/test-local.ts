@@ -910,6 +910,51 @@ async function main() {
   }
   console.log("\nRegression check passed: Miami-Dade towns are priced as Miami, not Fort Lauderdale.");
 
+  // --- Category keywords must match whole tokens (2026-10-05) ---
+  // Audit prompted by the kids-template bug. Substring matching had the same
+  // failure three more times, and the first is the worst of the lot: "cause"
+  // matched "because", so ANY inquiry containing ordinary writing like "I'm
+  // asking because..." was classified FUNDRAISER and sent donation mechanics.
+  {
+    const classify = (text: string): string | null => {
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91300, description: text, requester_id: CUSTOMER_ID },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      return classifyPrivateEvent(c);
+    };
+    const misfires: Array<[string, string]> = [
+      ["I'm asking because we have 12 people", "cause/because"],
+      ["Just checking because the date is tight", "cause/because"],
+      ["We are staffing the event ourselves", "staff/staffing"],
+    ];
+    for (const [text, why] of misfires) {
+      const got = classify(text);
+      if (got !== null) throw new Error(`ASSERTION FAILED (${why}): "${text}" classified as "${got}", expected no category. A keyword matched inside a longer word.`);
+    }
+    // Whole-token matching means inflections must be listed explicitly. If one
+    // is dropped from the keyword lists, this is what catches it.
+    const stillWorks: Array<[string, string]> = [
+      ["Additional Info: we are fundraising for the team", "fundraiser"],
+      ["Additional Info: raising donations for the shelter", "fundraiser"],
+      ["Additional Info: donating the proceeds", "fundraiser"],
+      ["Additional Info: we work with local charities", "fundraiser"],
+      ["Additional Info: to support our cause", "fundraiser"],
+      ["Additional Info: an employee appreciation night", "corporate"],
+      ["Additional Info: a launch party at my office", "corporate"],
+      ["Additional Info: one of our celebrations", "standard"],
+      ["Additional Info: a few families getting together", "standard"],
+      ["Additional Info: an event for every resident", "standard"],
+    ];
+    for (const [text, want] of stillWorks) {
+      const got = classify(text);
+      if (got !== want) throw new Error(`ASSERTION FAILED: "${text}" classified as "${got}", expected "${want}". Whole-token matching needs each inflected form spelled out in the keyword lists.`);
+    }
+    console.log(`\nRegression check passed: ${misfires.length} substring misfires blocked, ${stillWorks.length} inflected forms still classify.`);
+  }
+
   // --- Adult birthdays must not get the kids template (2026-10-05, #29784) ---
   // KIDS_KEYWORDS contained the bare word "birthday", and the classifier
   // checks kids FIRST, so every birthday inquiry got Cookies & Canvas
