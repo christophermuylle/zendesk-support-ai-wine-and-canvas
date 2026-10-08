@@ -24,6 +24,7 @@ import {
   PRIVATE_EVENT_INTERNAL_SENDER_PREFIX,
   PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS,
   PRIVATE_EVENT_INTERNAL_SENDER_ADDRESSES,
+  PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
 import {
@@ -364,7 +365,7 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
       ].join("\n");
       await deps.zendesk.postComment(ticketId, note, {
         isPublic: false,
-        addTags: ["needs_human", "private_event_reply_after_quote"],
+        addTags: ["needs_human", PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG],
         fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: PRIVATE_EVENT_FIELD_VALUE }],
       });
       return {

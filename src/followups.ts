@@ -39,6 +39,7 @@
 import type { IZendeskClient } from "./zendesk.js";
 import {
   PRIVATE_EVENT_QUOTE_SENT_TAG,
+  PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG,
   PRIVATE_EVENT_LOCATION_TAG_PREFIX,
   FOLLOW_UP_1_SENT_TAG,
   FOLLOW_UP_2_SENT_TAG,
@@ -163,6 +164,16 @@ async function processCandidate(
   if (ctx.ticket.status !== "pending") return { outcome: "skipped_not_eligible" };
   const tags = ctx.ticket.tags;
   if (!tags.includes(PRIVATE_EVENT_QUOTE_SENT_TAG)) return { outcome: "skipped_not_eligible" };
+
+  // The customer has replied since the quote went out, so there is nothing to
+  // follow up ON - a nudge here asks someone who is mid-conversation with us
+  // whether our email reached them. Status alone does NOT establish this:
+  // Zendesk puts a ticket back to pending whenever an agent answers, so every
+  // answered conversation re-enters this sweep. PV #81571 (Beverly Bumgarner)
+  // carried this tag for five days and still got follow-up 1 on 2026-10-08,
+  // because nothing in this file read it. The search query excludes the tag
+  // too; this re-check covers a human editing tags between search and fetch.
+  if (tags.includes(PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG)) return { outcome: "skipped_not_eligible" };
 
   const stage = nextStage(tags);
   if (stage === null) return { outcome: "skipped_all_sent" };
@@ -290,7 +301,7 @@ async function processCandidate(
  */
 export async function runFollowUpSweep(deps: FollowUpDeps): Promise<FollowUpSweepResult> {
   const candidateIds = await deps.zendesk.searchTicketIds(
-    `type:ticket status:pending tags:${PRIVATE_EVENT_QUOTE_SENT_TAG}`
+    `type:ticket status:pending tags:${PRIVATE_EVENT_QUOTE_SENT_TAG} -tags:${PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG}`
   );
 
   const result: FollowUpSweepResult = { checked: candidateIds.length, sent: [], errors: [] };

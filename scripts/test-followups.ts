@@ -147,6 +147,18 @@ async function main() {
   t7.ticket.tags.push("private_event_followup_1_sent", "private_event_followup_2_sent");
   store.set(7, t7);
 
+  // 8: PV #81571 (Beverly Bumgarner). Quoted 120h ago, the customer has
+  // replied since, and the pipeline stamped private_event_reply_after_quote
+  // at the time - but a human set the ticket back to PENDING (which is also
+  // what Zendesk does whenever an agent answers a customer), so it is back
+  // in the sweep's candidate set. Before 2026-10-08 nothing in followups.ts
+  // read that tag and she got follow-up 1 asking whether the quote she had
+  // already replied to four times had reached her. Must send nothing.
+  const t8 = makeTicket(8, 120, ["private_event_quote_sent_corporate", "private_event_reply_after_quote"], "Replied But Pending");
+  t8.comments.push(comment("Yes we want to book, what do I do next?", CUSTOMER_ID, 119));
+  t8.comments.push(comment("Let me check with our artist and get back to you.", AGENT_ID, 110));
+  store.set(8, t8);
+
   // 20: the #29001 / #29107 shape. Quoted 150h ago so ALL THREE stage
   // thresholds are already past, but we sent something on this ticket only
   // 1h ago. Must send nothing - before the 2026-09-24 fix this is exactly
@@ -185,6 +197,10 @@ async function main() {
   assert(store.get(4)!.ticket.tags.includes("needs_human"), "ticket 4 should be tagged needs_human when promo codes aren't configured");
   assert(sentStages(5).length === 0, "ticket 5 (all stages already sent) should get nothing - no re-send");
   assert(sentStages(6).length === 0, "ticket 6 (customer already replied, status=open) should get nothing");
+  assert(
+    sentStages(8).length === 0,
+    "ticket 8 (replied after quote, tagged, back on pending) should get nothing"
+  );
   assert(sentStages(7).length === 0, "ticket 7 (Cadillac, stage 3 due, no promo config) should NOT auto-send either");
   assert(store.get(7)!.ticket.tags.includes("needs_human"), "ticket 7 (Cadillac) should also fall back to needs_human, same as any other location, when promo codes aren't configured");
 

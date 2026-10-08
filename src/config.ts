@@ -132,6 +132,10 @@ export const PRIVATE_EVENT_FORM_MARKERS = (
   .filter(Boolean);
 
 export const PRIVATE_EVENT_QUOTE_SENT_TAG = "private_event_quote_sent";
+/** Stamped by the pipeline when the customer replies after a quote went out. The
+ * follow-up sweep treats it as a hard stop: a ticket with a live conversation on
+ * it never gets an automated "did you get my quote?" nudge, whatever its status. */
+export const PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG = "private_event_reply_after_quote";
 
 // Stamped when we send a clarifying first response (focus and/or location
 // unknown). Its only job is to make sure we ask ONCE: if the customer's
