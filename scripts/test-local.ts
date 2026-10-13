@@ -134,6 +134,8 @@ function makeComment(body: string, authorId: number, isPublic = true): ZendeskCo
 }
 
 const CUSTOMER_ID = 1001;
+/** Any id that is not the requester's - used for comments WE authored. */
+const AGENT_ID = 2002;
 
 const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: number[] }[] = [
   {
@@ -844,6 +846,29 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // WC #30265 (2026-10-12): Raimey emailed the Orlando licensee "are you
+    // available?" with a new lead, stacking the Artist Available macro on top
+    // of the Standard ORL quote macro. The first comment on this ticket is
+    // OURS; the licensee is the requester. Her reply is a reply to us, not an
+    // inquiry. Same shape as PV #81725 (re-engagement blast) and #81443 (a
+    // payment reminder that came back as a ticket).
+    label: "REGRESSION (#30265): a thread WE started must never be auto-answered",
+    ctx: {
+      ticket: {
+        id: 30265, subject: "New Private event inquiry - are you available?",
+        description: "We have a new party booking! Date/time: Sometime in November. Location: School in Portage, MI. Estimated headcount: Undecided. Let me know if you are available.",
+        status: "pending", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Licensee Orlando", email: "licensee.orlando@example.com" },
+      comments: [
+        makeComment("We have a new party booking! Date/time: Sometime in November. Location: School in Portage, MI. Estimated headcount: Undecided. Let me know if you are available.", AGENT_ID),
+        makeComment("Yes, I am available that week and can cover the party. Let me know the final headcount and I will plan the paint party.", CUSTOMER_ID),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1374,6 +1399,19 @@ async function main() {
     );
   }
   console.log("Regression check passed: only form submissions are answered automatically; free-form email is held for a human.");
+
+  // --- Outbound threads (WC #30265, 2026-10-12) ---
+  const outboundLabel = "REGRESSION (#30265): a thread WE started must never be auto-answered";
+  const outbound = resultsByLabel.get(outboundLabel);
+  if (!outbound) throw new Error(`ASSERTION FAILED: scenario "${outboundLabel}" did not run`);
+  if (outbound.finalAction === "posted_public_reply" || outbound.finalAction === "private_event_clarification_sent") {
+    throw new Error(
+      `ASSERTION FAILED: #30265 regression - a ticket whose first comment is OURS produced "${outbound.finalAction}". ` +
+        `An outbound thread is never an inbound inquiry, however much private-event vocabulary the reply contains.`
+    );
+  }
+  console.log("Regression check passed: a thread we started is never auto-answered (#30265).");
+
 
   console.log("Regression check passed: staff/licensee misfires (#29225, #29206) are no longer auto-quoted, and genuine inquiries (#29199-style) still are.");
 }

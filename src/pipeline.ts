@@ -25,6 +25,7 @@ import {
   PRIVATE_EVENT_INTERNAL_SENDER_DOMAINS,
   PRIVATE_EVENT_INTERNAL_SENDER_ADDRESSES,
   PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG,
+  OUTBOUND_THREAD_TAG,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
 import {
@@ -333,6 +334,45 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
   // must still run whoever commented last.
   const newestCommentOnTicket = ctx.comments[ctx.comments.length - 1];
   if (newestCommentOnTicket && newestCommentOnTicket.author_id !== ctx.ticket.requester_id) {
+    return {
+      ticketId,
+      ruleDecision,
+      matchedLocation: null,
+      finalAction: "no_op",
+      mode: deps.mode,
+    };
+  }
+
+  // A thread WE started. The first comment on a real inquiry is always the
+  // customer's; when it is one of ours, this ticket is an outbound message
+  // we sent - an internal note to a licensee, a re-engagement campaign, a
+  // payment reminder - and whatever comes back is a reply to us, never a new
+  // inquiry to answer automatically.
+  //
+  // WC #30265 (2026-10-12): Raimey emailed the Orlando licensee "are you
+  // available?" and stacked the Artist Available macro on top of the Standard
+  // ORL quote macro, which stamped private_event_quote_sent. PV #81725: a
+  // re-engagement blast to a past customer drew "I did not initiate any
+  // correspondence." PV #81443: the Tucson mailbox's payment reminder came
+  // back as an inquiry and was auto-quoted "Hi Painting,".
+  //
+  // The newest-comment guard above does not cover this: on an outbound ticket
+  // the recipient IS the requester, so their reply passes it.
+  const firstCommentOnTicket = ctx.comments[0];
+  if (firstCommentOnTicket && firstCommentOnTicket.author_id !== ctx.ticket.requester_id) {
+    // Flag it once for a human, then stay quiet on every later update.
+    if (!ctx.ticket.tags.includes(OUTBOUND_THREAD_TAG)) {
+      await deps.zendesk.postComment(
+        ticketId,
+        [
+          `[OUTBOUND THREAD - we sent the first message on this ticket]`,
+          `Matched rule: ${ruleDecision.matchedRule}`,
+          ``,
+          `The first comment here is ours, not the requester's, so this ticket is an outbound message we sent rather than an inbound inquiry - nothing automated should answer it. Leaving it for a human.`,
+        ].join("\n"),
+        { isPublic: false, addTags: ["needs_human", OUTBOUND_THREAD_TAG] }
+      );
+    }
     return {
       ticketId,
       ruleDecision,

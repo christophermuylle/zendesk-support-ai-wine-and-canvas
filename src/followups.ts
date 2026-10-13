@@ -175,6 +175,17 @@ async function processCandidate(
   // too; this re-check covers a human editing tags between search and fetch.
   if (tags.includes(PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG)) return { outcome: "skipped_not_eligible" };
 
+  // Never follow up on a thread WE started - see the same guard in
+  // pipeline.ts. WC #30265: an internal "are you available?" email to the
+  // Orlando licensee carried private_event_quote_sent (stacked macros) and
+  // status pending, so this sweep emailed her "following up on the painting
+  // party quote I sent yesterday" about a quote that never existed.
+  const firstComment = ctx.comments[0];
+  if (firstComment && firstComment.author_id !== ctx.ticket.requester_id) {
+    return { outcome: "skipped_not_eligible" };
+  }
+
+
   const stage = nextStage(tags);
   if (stage === null) return { outcome: "skipped_all_sent" };
 

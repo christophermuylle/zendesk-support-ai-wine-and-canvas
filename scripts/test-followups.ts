@@ -159,6 +159,19 @@ async function main() {
   t8.comments.push(comment("Let me check with our artist and get back to you.", AGENT_ID, 110));
   store.set(8, t8);
 
+  // 30265: WC #30265 (2026-10-12). Raimey emailed the Orlando licensee "are you
+  // available?" and stacked the Artist Available macro on top of the Standard
+  // ORL quote macro, so the ticket carried private_event_quote_sent and status
+  // pending even though no quote was ever sent to anyone. 24h later this sweep
+  // emailed the licensee "following up on the painting party quote I sent
+  // yesterday." The tell is the FIRST comment: it is ours, not the requester's.
+  const tOutbound = makeTicket(30265, 30, ["private_event_quote_sent_standard", "private_event_location_orlando"], "Licensee Outbound");
+  tOutbound.comments = [
+    comment("We have a new party booking! Let me know if you are available.", AGENT_ID, 30),
+    comment("Yes I can cover that date.", CUSTOMER_ID, 26),
+  ];
+  store.set(30265, tOutbound);
+
   // 20: the #29001 / #29107 shape. Quoted 150h ago so ALL THREE stage
   // thresholds are already past, but we sent something on this ticket only
   // 1h ago. Must send nothing - before the 2026-09-24 fix this is exactly
@@ -197,6 +210,10 @@ async function main() {
   assert(store.get(4)!.ticket.tags.includes("needs_human"), "ticket 4 should be tagged needs_human when promo codes aren't configured");
   assert(sentStages(5).length === 0, "ticket 5 (all stages already sent) should get nothing - no re-send");
   assert(sentStages(6).length === 0, "ticket 6 (customer already replied, status=open) should get nothing");
+  assert(
+    sentStages(30265).length === 0,
+    "ticket 30265 (outbound thread we started) should get nothing"
+  );
   assert(
     sentStages(8).length === 0,
     "ticket 8 (replied after quote, tagged, back on pending) should get nothing"
