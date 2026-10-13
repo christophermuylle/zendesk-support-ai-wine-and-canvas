@@ -641,6 +641,60 @@ function joinLinesPlain(lines: Array<string | null | undefined>): string {
   return lines.filter((l): l is string => l !== null && l !== undefined && !l.startsWith("__EMBED_")).join("\n");
 }
 
+// ---------------------------------------------------------------------------
+// Minimum group size.
+//
+// Standard/corporate quote 8, kids 10, fundraisers 12 - these were literals
+// inside the three templates until 2026-10-11; they are constants now so the
+// Lead Bros floor below has one place to apply.
+//
+// Lead Bros is a paid lead-gen source. Its inquiries arrive through the same
+// form as everything else, so the BODY is indistinguishable from a regular
+// inquiry - the only thing that marks them is the subject line, which the
+// source sets to "Party Request from Wine & Canvas (LB)". Christopher,
+// 2026-10-11: these quote at a 10-person minimum. Matching on the subject
+// alone is what keeps regular inquiries untouched.
+// ---------------------------------------------------------------------------
+const DEFAULT_MINIMUM_GROUP_SIZE = 8;
+const KIDS_MINIMUM_GROUP_SIZE = 10;
+const FUNDRAISER_MINIMUM_GROUP_SIZE = 12;
+const LEAD_BROS_MINIMUM_GROUP_SIZE = 10;
+/** Both brands' markers, so either feed naming works on either brand. */
+const LEAD_BROS_SUBJECT_MARKERS = ["(lb)", "lead bros"];
+
+/** True when this ticket came in through the Lead Bros feed. Subject only - a
+ * customer writing "lead bros" in the body of a normal inquiry is not one, and
+ * "Re: Party Request from Wine & Canvas (LB)" on a reply still is. */
+export function isLeadBrosInquiry(ctx: TicketContext): boolean {
+  const subject = (ctx.ticket.subject ?? "").toLowerCase();
+  return LEAD_BROS_SUBJECT_MARKERS.some((m) => subject.includes(m));
+}
+
+/** Minimum guests to quote for this category. The Lead Bros floor is a
+ * Math.max, not a replacement: it must never LOWER a minimum, so kids stay at
+ * 10 and fundraisers stay at the company-wide 12. */
+export function minimumGroupSizeFor(category: PrivateEventCategory, leadBros = false): number {
+  const base =
+    category === "fundraiser"
+      ? FUNDRAISER_MINIMUM_GROUP_SIZE
+      : category === "kids"
+        ? KIDS_MINIMUM_GROUP_SIZE
+        : DEFAULT_MINIMUM_GROUP_SIZE;
+  return leadBros ? Math.max(base, LEAD_BROS_MINIMUM_GROUP_SIZE) : base;
+}
+
+/** The first pricing tier is written as "8-29" in the tier tables, but the
+ * quote must not advertise a band that starts below the minimum we are
+ * actually quoting - Tucson and Sacramento have always been 10-guest markets,
+ * and Lead Bros inquiries are 10 everywhere. Rewrites the lower bound of the
+ * first band to the effective minimum and leaves every later band alone
+ * ("30-49", "50+" are unaffected). A band whose lower bound already matches,
+ * or that has no leading number, is returned untouched. */
+function tierRangeForDisplay(range: string, index: number, minimum: number): string {
+  if (index !== 0) return range;
+  return range.replace(/^\d+/, String(minimum));
+}
+
 export function renderPrivateEventQuote(
   ctx: TicketContext,
   category: PrivateEventCategory,
@@ -648,17 +702,18 @@ export function renderPrivateEventQuote(
 ): RenderedQuote {
   const loc = getLocationInfo(locationKey);
   const firstName = getFirstName(ctx);
+  const leadBros = isLeadBrosInquiry(ctx);
 
   switch (category) {
     case "corporate":
-      return renderCorporateOrStandard(loc, locationKey, firstName, "corporate");
+      return renderCorporateOrStandard(loc, locationKey, firstName, "corporate", leadBros);
     case "fundraiser":
-      return renderFundraiser(loc, locationKey, firstName, mentionsGiftDonation(ctx));
+      return renderFundraiser(loc, locationKey, firstName, mentionsGiftDonation(ctx), leadBros);
     case "kids":
-      return renderKids(loc, locationKey, firstName);
+      return renderKids(loc, locationKey, firstName, leadBros);
     case "standard":
     default:
-      return renderCorporateOrStandard(loc, locationKey, firstName, "standard");
+      return renderCorporateOrStandard(loc, locationKey, firstName, "standard", leadBros);
   }
 }
 
@@ -672,8 +727,10 @@ function renderCorporateOrStandard(
   loc: PrivateEventLocationInfo,
   locationKey: PrivateEventLocationKey,
   firstName: string,
-  category: "corporate" | "standard"
+  category: "corporate" | "standard",
+  leadBros = false
 ): RenderedQuote {
+  const minimum = minimumGroupSizeFor(category, leadBros);
   const tiers = category === "corporate" ? loc.pricing.corporateTiers : loc.pricing.standardTiers;
   const customFee = 75;
 
@@ -702,8 +759,8 @@ function renderCorporateOrStandard(
     `1,000+ painting designs to choose from (we send the link once your deposit is in). Want something custom and unique to your event? We can do that for a $${customFee} flat fee.`,
     ``,
     `💲 Pricing for ${loc.displayName}`,
-    `Minimum group size: 8 guests`,
-    `Price per person: ${tiers.map((t) => `$${t.pricePerPerson}/person (${t.range} guests)`).join(", ")}`,
+    `Minimum group size: ${minimum} guests`,
+    `Price per person: ${tiers.map((t, i) => `$${t.pricePerPerson}/person (${tierRangeForDisplay(t.range, i, minimum)} guests)`).join(", ")}`,
     `Tighter budget? Smaller canvas options are available at a lower per-person rate.`,
     travelFeeLine(loc),
     `Travel fees may apply outside the greater city limits.`,
@@ -736,8 +793,10 @@ function renderFundraiser(
   loc: PrivateEventLocationInfo,
   locationKey: PrivateEventLocationKey,
   firstName: string,
-  mentionsDonation: boolean
+  mentionsDonation: boolean,
+  leadBros = false
 ): RenderedQuote {
+  const minimum = minimumGroupSizeFor("fundraiser", leadBros);
   const { fundraiserRetail: retail, fundraiserKeep: keep } = loc.pricing;
   const petPricing = getPetPortraitPricing(locationKey);
 
@@ -760,7 +819,7 @@ function renderFundraiser(
     ``,
     `Painting: We can do canvas or glass painting for the quoted price. Our portfolio has 1,000's of images available. We will send a link once you are ready to book. If you don't see a design you like there is an extra $75 flat fee for custom paintings.`,
     ``,
-    `Pricing: The group minimum is currently 12 people to host a fundraising event. For fundraisers, we discount the retail rate by $5 and donate the difference to your cause — you can increase the retail rate to raise the donation amount if you like.`,
+    `Pricing: The group minimum is currently ${minimum} people to host a fundraising event. For fundraisers, we discount the retail rate by $5 and donate the difference to your cause — you can increase the retail rate to raise the donation amount if you like.`,
     ``,
     `Standard rate for ${loc.displayName} (Step-by-step Canvas, 16×20, 3-hour event): $${retail} per person — we keep $${keep}, and $${retail - keep} per ticket goes to your cause.`,
     `Options to do a 2-hour event on 11×14 will lower the cost — just ask!`,
@@ -799,8 +858,9 @@ function renderFundraiser(
   };
 }
 
-function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string): RenderedQuote {
+function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLocationKey, firstName: string, leadBros = false): RenderedQuote {
   const price = loc.pricing.kidsPricePerPerson;
+  const minimum = minimumGroupSizeFor("kids", leadBros);
 
   const bodyLines: Array<string | null> = [
     `Hi ${firstName},`,
@@ -823,7 +883,7 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     `__EMBED_KIDS_UNICORN__`,
     ``,
     `Pricing for ${loc.displayName}:`,
-    `The group minimum is currently 10 people to host an event and the rate is $${price} per person.`,
+    `The group minimum is currently ${minimum} people to host an event and the rate is $${price} per person.`,
     `Outside your budget? We also offer an 8x10 size canvas for a one hour painting - ask for pricing!`,
     `Discounts are provided for groups of 30+ people.`,
     travelFeeLine(loc),
