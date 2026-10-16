@@ -269,7 +269,27 @@ async function processCandidate(
   }
 
   const pool = PRIVATE_EVENT_LOCATION_PROMO_POOL[locationKey];
-  const code = await claimNextCode(promoCfg, pool);
+  // A THROW here used to vanish. runFollowUpSweep catches per-ticket errors
+  // into result.errors and writes nothing to the ticket, so a Google Sheets
+  // failure - expired service-account credentials, revoked sheet access, an
+  // API error - left no tag, no needs_human and no trace anywhere a person
+  // would look. PV #81753, #81756 and #81788 sat silently undelivered from
+  // 2026-10-14; the last successful email 3 was 2026-10-12 20:42, and nobody
+  // could tell because the two graceful failure paths above both tag
+  // _needs_manual_code and neither had fired. A throw now lands in the same
+  // place as "no credentials" and "pool empty": visible on the ticket.
+  let code: string | null;
+  try {
+    code = await claimNextCode(promoCfg, pool);
+  } catch (err) {
+    console.error(
+      `[followups] ticket ${ticketId}: email 3 is due but claiming a promo code from the "${pool}" sheet THREW - ` +
+        `${err instanceof Error ? err.message : String(err)}. Check the service-account credentials and that the ` +
+        `sheet is still shared with them. Tagging for a human.`
+    );
+    await deps.zendesk.updateTicket(ticketId, { addTags: ["needs_human", `${stageTag}_needs_manual_code`] });
+    return { outcome: "skipped_not_eligible" };
+  }
   if (!code) {
     console.error(
       `[followups] ticket ${ticketId}: email 3 is due but the "${pool}" promo code pool is EMPTY. Tagging for a human - ` +
