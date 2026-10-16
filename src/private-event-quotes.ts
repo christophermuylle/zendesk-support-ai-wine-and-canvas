@@ -508,7 +508,8 @@ export interface PrivateEventLocationInfo {
 // standard/fundraiser template text). Naples and Miami share one combined
 // link. Cadillac's is its own dedicated venue list (given earlier,
 // separate from the "restaurant partner" lists below).
-const RESTAURANT_LIST_INDIANAPOLIS = "https://drive.google.com/file/d/1bHVyXPZh8RjHGdYFC4Ag0cgts_neh6bq/view?usp=sharing";
+// Updated 2026-10-16 (Christopher: "Updated Indianapolis Venue kit").
+const RESTAURANT_LIST_INDIANAPOLIS = "https://drive.google.com/file/d/1ljOmNUETCo9iB6Cya5NycSgwNK-fjfza/view?usp=sharing";
 const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-/view?usp=sharing";
 const RESTAURANT_LIST_ORLANDO = "https://drive.google.com/file/d/1zCNFqOIM1xmzI3f5c_3aRcjgsg9Cxywt/view?usp=sharing";
 const RESTAURANT_LIST_FORT_LAUDERDALE = "https://drive.google.com/file/d/1bY8pEwUCLddKcq2mpAtwYNFbea2J4mWJ/view?usp=sharing";
