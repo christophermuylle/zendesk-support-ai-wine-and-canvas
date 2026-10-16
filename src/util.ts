@@ -412,3 +412,30 @@ export function keywordMatches(text: string, keyword: string): boolean {
   }
   return re.test(text);
 }
+
+/**
+ * The guest count the customer typed on the private-event form, or null when
+ * the form carried no definite number.
+ *
+ * Read from the ORIGINAL form submission only, never the whole thread: our own
+ * quote text says "8-29 guests", and a customer quoting it back would otherwise
+ * be parsed as a 8-guest party. Same two patterns digest.ts already uses, which
+ * cover Wine and Canvas's "**Guests:** 12" and Painting and Vino's "Approximate
+ * Number of Expected Guests 12".
+ *
+ * A range ("20-30") yields its lower bound, which is the conservative read for
+ * a minimum check. Added 2026-10-16 after #30268: Iris Figurora's form said
+ * "Guests: 2" / "Romantic Date" and she was sent the full private-event quote
+ * anyway, two minutes after a human had already pointed her at public classes.
+ */
+export function extractGuestCount(formBody: string | null | undefined): number | null {
+  const text = formBody ?? "";
+  for (const re of [/number of expected guests\s*\**\s*(\d{1,4})/i, /guests?:?\s*\**\s*(\d{1,4})/i]) {
+    const m = text.match(re);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return null;
+}

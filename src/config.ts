@@ -132,6 +132,10 @@ export const PRIVATE_EVENT_FORM_MARKERS = (
   .filter(Boolean);
 
 export const PRIVATE_EVENT_QUOTE_SENT_TAG = "private_event_quote_sent";
+/** The party is smaller than the group minimum, so we pointed them at public
+ * classes instead of quoting. Deliberately NOT accompanied by
+ * PRIVATE_EVENT_QUOTE_SENT_TAG: there is no quote to follow up on. */
+export const PRIVATE_EVENT_BELOW_MINIMUM_TAG = "private_event_below_minimum";
 /** Marks a ticket whose FIRST comment is ours - an outbound message we sent,
  * not an inbound inquiry. Nothing automated answers or follows up on these. */
 export const OUTBOUND_THREAD_TAG = "private_event_outbound_thread";

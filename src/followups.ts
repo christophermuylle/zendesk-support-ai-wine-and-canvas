@@ -46,7 +46,7 @@ import {
   FOLLOW_UP_3_SENT_TAG,
 } from "./config.js";
 import type { PrivateEventCategory, PrivateEventLocationKey } from "./private-event-quotes.js";
-import { getFirstName, getLocationInfo } from "./private-event-quotes.js";
+import { getFirstName, getLocationInfo, PRIVATE_EVENT_LOCATION_CALENDAR_LINKS } from "./private-event-quotes.js";
 import { renderEmail1, renderEmail2, renderEmail3 } from "./followup-templates.js";
 import { loadPromoCodeConfig, claimNextCode, type PromoPool } from "./promo-codes.js";
 
@@ -80,17 +80,6 @@ const MIN_HOURS_BETWEEN_SENDS = 24;
 // page at all (confirmed in cadillac.md) - null here, which
 // renderEmail3 in followup-templates.ts renders as a phone/email fallback
 // line instead of guessing a link.
-const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationKey, string | null> = {
-  "fort-myers": "https://wineandcanvas.com/florida/fort-myers/",
-  naples: "https://wineandcanvas.com/florida/fort-myers/",
-  tampa: "https://wineandcanvas.com/florida/tampa/",
-  orlando: "https://wineandcanvas.com/florida/orlando/",
-  "fort-lauderdale": "https://wineandcanvas.com/florida/fort-lauderdale/",
-  miami: "https://wineandcanvas.com/florida/fort-lauderdale/",
-  indianapolis: "https://wineandcanvas.com/indianapolis/events/",
-  "grand-rapids": "https://wineandcanvas.com/michigan/grand-rapids/",
-  cadillac: null,
-};
 
 // PROMO POOL: matches how Christopher split the three code sheets he sent
 // 2026-09-22 (Indianapolis / Michigan / florida $10 One Time Codes) - see

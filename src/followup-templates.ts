@@ -45,7 +45,7 @@ export function renderEmail1(): string {
     "I realize you may still be reviewing the details, so I’ll follow up with you tomorrow in case you have any questions or would like to hop on a call to discuss your party ideas.",
     "",
     "Have a lovely day,",
-    "Bonnie Davila",
+    "Raimey Williams",
     "Private Event Coordinator",
     "Wine & Canvas",
   ].join("\n");
@@ -75,7 +75,7 @@ function renderEmail2Corporate(firstName: string): string {
     "We’d love the chance to bring the same energy and creativity to your next event. Do you have 15 minutes this week or next to chat about options?",
     `<a href="${EVENT_PHOTO_LINK}">CLICK HERE TO SEE ANOTHER FUN PIC FROM AN EVENT</a>`,
     "Looking forward to hearing from you!",
-    "Warm regards,<br>Bonnie Davila<br>Private Event Coordinator<br>Wine and Canvas",
+    "Warm regards,<br>Raimey Williams<br>Private Event Coordinator<br>Wine and Canvas",
   ]);
 }
 
@@ -93,7 +93,7 @@ function renderEmail2Standard(firstName: string): string {
     "Let us know if you are working with a specific budget — we offer smaller canvas options and shorter sessions, and are happy to work with you so we can create something that fits your needs.",
     "When would be a good time to set up a quick 15-minute chat this week so we can lock in your special occasion?",
     `<a href="${EVENT_PHOTO_LINK}">HERE IS ANOTHER FUN PARTY PIC</a>`,
-    "Warm regards,<br>Bonnie Davila<br>Private Event Coordinator<br>Wine and Canvas",
+    "Warm regards,<br>Raimey Williams<br>Private Event Coordinator<br>Wine and Canvas",
   ]);
 }
 
@@ -140,6 +140,6 @@ export function renderEmail3(promoCode: string, locationName: string | null, loc
     browseLine,
     "We’d love for you to join us, relax, sip, create, and see why our guests keep coming back! 🍷🖌️ If you decide to book a private party down the road simply respond to this email.",
     "Your $10 off code is valid for 30 days and can be used for public events (not valid for private parties or fundraisers).<br>Hope to paint with you soon!",
-    "Stay Colorful! 🎨<br>Bonnie",
+    "Stay Colorful! 🎨<br>Raimey",
   ]);
 }

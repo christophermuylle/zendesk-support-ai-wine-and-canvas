@@ -869,6 +869,34 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "REGRESSION (#30268): a party under the group minimum gets public classes, not a quote",
+    ctx: {
+      ticket: {
+        id: 30268, subject: "Party Request from Iris Figurora",
+        description: "## Party Request from Wine & Canvas\n\n**Name:** Iris Figurora\n\n**Email:** iris@example.com\n\n**Preferred Date:** 2026-12-05\n\n**Guests:** 2\n\n**Location:** Indianapolis, IN\n\n**Additional Info:** Birthday celebration for my wife",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Iris Figurora", email: "iris@example.com" },
+      comments: [makeComment("## Party Request from Wine & Canvas\n\n**Name:** Iris Figurora\n\n**Email:** iris@example.com\n\n**Preferred Date:** 2026-12-05\n\n**Guests:** 2\n\n**Location:** Indianapolis, IN\n\n**Additional Info:** Birthday celebration for my wife", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "CONTROL (#30268): a party at or above the minimum still gets the normal quote",
+    ctx: {
+      ticket: {
+        id: 30269, subject: "Party Request from Iris Figurora",
+        description: "## Party Request from Wine & Canvas\n\n**Name:** Iris Figurora\n\n**Email:** iris@example.com\n\n**Preferred Date:** 2026-12-05\n\n**Guests:** 20\n\n**Location:** Indianapolis, IN\n\n**Additional Info:** Birthday celebration for my wife",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Iris Figurora", email: "iris@example.com" },
+      comments: [makeComment("## Party Request from Wine & Canvas\n\n**Name:** Iris Figurora\n\n**Email:** iris@example.com\n\n**Preferred Date:** 2026-12-05\n\n**Guests:** 20\n\n**Location:** Indianapolis, IN\n\n**Additional Info:** Birthday celebration for my wife", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1399,6 +1427,27 @@ async function main() {
     );
   }
   console.log("Regression check passed: only form submissions are answered automatically; free-form email is held for a human.");
+
+  // --- Below the group minimum (#30268, 2026-10-12) ---
+  const smallLabel = "REGRESSION (#30268): a party under the group minimum gets public classes, not a quote";
+  const small = resultsByLabel.get(smallLabel);
+  if (!small) throw new Error(`ASSERTION FAILED: scenario "${smallLabel}" did not run`);
+  if (small.finalAction !== "private_event_below_minimum") {
+    throw new Error(
+      `ASSERTION FAILED: #30268 regression - a 2-guest request produced "${small.finalAction}". ` +
+        `A party under the minimum is pointed at public classes, never quoted.`
+    );
+  }
+  const bigLabel = "CONTROL (#30268): a party at or above the minimum still gets the normal quote";
+  const big = resultsByLabel.get(bigLabel);
+  if (!big) throw new Error(`ASSERTION FAILED: scenario "${bigLabel}" did not run`);
+  if (big.finalAction === "private_event_below_minimum") {
+    throw new Error(
+      `ASSERTION FAILED: #30268 control - a 20-guest request was treated as below the minimum.`
+    );
+  }
+  console.log("Regression check passed: parties under the group minimum get public classes, not a quote (#30268).");
+
 
   // --- Outbound threads (WC #30265, 2026-10-12) ---
   const outboundLabel = "REGRESSION (#30265): a thread WE started must never be auto-answered";

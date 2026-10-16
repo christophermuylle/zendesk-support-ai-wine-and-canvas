@@ -489,7 +489,9 @@ const KIDS_ORLANDO_NAPLES_MIAMI_PRICE = 35;
  * Naples now gets the same +$10 bump as Orlando/Miami.
  */
 export function getPetPortraitPricing(locationKey: PrivateEventLocationKey): { charge: number; retail: number } {
-  const bump = locationKey === "orlando" || locationKey === "miami" || locationKey === "naples" ? 10 : 0;
+  // Orlando dropped out of the +$10 group on 2026-10-15 when it moved to
+  // Fort Myers pricing, which carries no bump.
+  const bump = locationKey === "miami" || locationKey === "naples" ? 10 : 0;
   return { charge: 45 + bump, retail: 55 + bump };
 }
 
@@ -534,7 +536,11 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   orlando: {
     displayName: "Orlando, FL",
     restaurantListUrl: RESTAURANT_LIST_ORLANDO,
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
+    // Christopher, 2026-10-15: "program the Private Event inquiries for
+    // Orlando to have the same pricing as Fort Myers" - moved off Group B
+    // onto Group A across every category, and off the Orlando/Naples/Miami
+    // kids rate onto the default. Orlando keeps its own venue list.
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   "fort-lauderdale": {
     displayName: "Fort Lauderdale, FL",
@@ -695,6 +701,67 @@ function tierRangeForDisplay(range: string, index: number, minimum: number): str
   return range.replace(/^\d+/, String(minimum));
 }
 
+/** Public-events calendar page per market - null where a location has no page
+ * on file (never invent one). Lives here rather than in followups.ts because
+ * both the follow-up sequence and the below-minimum reply need it. */
+export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationKey, string | null> = {
+  "fort-myers": "https://wineandcanvas.com/florida/fort-myers/",
+  naples: "https://wineandcanvas.com/florida/fort-myers/",
+  tampa: "https://wineandcanvas.com/florida/tampa/",
+  orlando: "https://wineandcanvas.com/florida/orlando/",
+  "fort-lauderdale": "https://wineandcanvas.com/florida/fort-lauderdale/",
+  miami: "https://wineandcanvas.com/florida/fort-lauderdale/",
+  indianapolis: "https://wineandcanvas.com/indianapolis/events/",
+  "grand-rapids": "https://wineandcanvas.com/michigan/grand-rapids/",
+  cadillac: null,
+};
+
+/**
+ * Reply for a party smaller than the group minimum: point them at public
+ * classes instead of quoting a private event they cannot book.
+ *
+ * Wording follows Raimey's own hand-written reply on #30268 ("Since it's just
+ * the two of you, one of our public paint and sip classes would be a great
+ * fit. Private parties start at 8 guests...") rather than inventing a tone.
+ * Where a market has no calendar page on file (Cadillac), falls back to the
+ * phone/email line that location's knowledge-base file already points
+ * customers to - never a guessed link.
+ */
+export function renderBelowMinimumReply(
+  firstName: string,
+  locationDisplayName: string | null,
+  calendarLink: string | null,
+  minimum: number,
+  guests: number
+): { plainBody: string; htmlBody: string } {
+  const groupPhrase = guests === 2 ? "just the two of you" : `a group of ${guests}`;
+  const browseLabel = locationDisplayName
+    ? `Browse upcoming classes in ${locationDisplayName}`
+    : "Browse upcoming classes";
+  const lines: Array<string | null> = [
+    `Hi ${firstName},`,
+    ``,
+    `What a fun idea! Since it's ${groupPhrase}, one of our public paint and sip classes would be a great fit — you get the same artist-led, step-by-step painting experience, and there's no minimum.`,
+    ``,
+    `Private parties start at ${minimum} guests, so a public class is the easier way to go for a smaller group.`,
+    ``,
+    calendarLink
+      ? `${browseLabel}: ${calendarLink}`
+      : `${browseLabel} — give us a call at (866) 631-0226 or email support@wineandcanvas.com and we'll send you the current schedule.`,
+    ``,
+    `If your plans grow and you end up with ${minimum} or more, just reply here and I'll put a private quote together.`,
+    ``,
+    `Cheers,`,
+    ``,
+    `Raimey — Private Event Coordinator`,
+    ``,
+    `The Wine & Canvas Team`,
+  ];
+  const plainBody = joinLinesPlain(lines);
+  const links = calendarLink ? [{ label: browseLabel, url: calendarLink }] : [];
+  return { plainBody, htmlBody: toHtml(joinLines(lines), links) };
+}
+
 export function renderPrivateEventQuote(
   ctx: TicketContext,
   category: PrivateEventCategory,
@@ -776,7 +843,7 @@ function renderCorporateOrStandard(
     ``,
     `Cheers,`,
     ``,
-    `Bonnie — Private Event Coordinator`,
+    `Raimey — Private Event Coordinator`,
     ``,
     `The Wine & Canvas Team`,
   ]);
@@ -838,7 +905,7 @@ function renderFundraiser(
     `If you'd like to move forward with the planning process, don't hesitate to reach out and we can get you started! Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
     ``,
     `Cheers,`,
-    `Bonnie`,
+    `Raimey`,
     `The Wine & Canvas Team`,
   ];
 
@@ -900,7 +967,7 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     `__EMBED_KIDS_FAMILY__`,
     ``,
     `Cheers,`,
-    `Bonnie`,
+    `Raimey`,
     `The Wine & Canvas Team`,
   ];
 

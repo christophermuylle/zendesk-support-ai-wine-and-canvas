@@ -49,7 +49,7 @@ const FOCUS_OPTIONS = [
   "Fundraiser \u2014 school, nonprofit, or charity",
 ];
 
-const SIGN_OFF = ["Cheers,", "", "Bonnie \u2014 Private Event Coordinator", "", "The Wine & Canvas Team"];
+const SIGN_OFF = ["Cheers,", "", "Raimey \u2014 Private Event Coordinator", "", "The Wine & Canvas Team"];
 
 const OPENING = (first: string) => [
   `Hi ${first},`,
