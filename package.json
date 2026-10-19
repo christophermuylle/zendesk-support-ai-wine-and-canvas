@@ -12,7 +12,8 @@
     "start": "node dist/src/index.js",
     "dev": "tsx watch src/index.ts",
     "test:mock": "tsx scripts/test-local.ts",
-    "test:followups": "tsx scripts/test-followups.ts"
+    "test:followups": "tsx scripts/test-followups.ts",
+    "test:promo": "tsx scripts/test-promo-codes.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
