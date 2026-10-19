@@ -897,6 +897,20 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "REGRESSION (#30357/#30413): a generic contact-form inquiry must be flagged for a human",
+    ctx: {
+      ticket: {
+        id: 30413, subject: "Contact from Kristi Risnes",
+        description: "## Contact from Wine & Canvas Michigan\n\n**Name:** Kristi Risnes\n\n**Email:** kristi@example.com\n\n**Phone:** (320) 495-3392\n\n**Location:** Mille Lacs Island Resort\n\n**Message:** I am looking for someone to come onsite for a couple of events for the summer of 2027. My office hours are Monday -Friday 9 a.m. to 5 p.m.\n\n-- This e-mail was sent from a contact form on Wine and Canvas - Michigan (https://wineandcanvas.com/michigan)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Contact Former", email: "cf@example.com" },
+      comments: [makeComment("## Contact from Wine & Canvas Michigan\n\n**Name:** Kristi Risnes\n\n**Email:** kristi@example.com\n\n**Phone:** (320) 495-3392\n\n**Location:** Mille Lacs Island Resort\n\n**Message:** I am looking for someone to come onsite for a couple of events for the summer of 2027. My office hours are Monday -Friday 9 a.m. to 5 p.m.\n\n-- This e-mail was sent from a contact form on Wine and Canvas - Michigan (https://wineandcanvas.com/michigan)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1030,6 +1044,10 @@ async function main() {
       ["Additional Info: birthday party for about 15 of us", "standard"],
       ["Additional Info: her 17th birthday", "standard"],
       ["Additional Info: 21st birthday", "standard"],
+      // The range pattern must not fire on adult ages or on a headcount.
+      ["Additional Info: ages 21-30 bachelorette", "standard"],
+      ["Additional Info: Guests: 20-30 for a birthday party", "standard"],
+      ["Additional Info: bridal shower, ages 25 to 40", "standard"],
     ];
     for (const [text, want] of adult) {
       const got = classify(text);
@@ -1044,6 +1062,14 @@ async function main() {
       "Additional Info: a kids party",
       "Additional Info: sweet 16",
       "Additional Info: he is turning 16",
+      // Age RANGES and plurals - how people describe a GROUP of children
+      // rather than one birthday child (#30423, Kristina Ripani, 2026-10-14).
+      "Additional Info: Girls and boys ages 7-9 with a few adults",
+      "Additional Info: ages 7-9",
+      "Additional Info: ages 7 to 9",
+      "Additional Info: a bunch of 8 year olds",
+      "Additional Info: 7-9 year olds",
+      "Additional Info: Cookies and Canvas for my son",
     ];
     for (const text of kids) {
       const got = classify(text);
@@ -1427,6 +1453,23 @@ async function main() {
     );
   }
   console.log("Regression check passed: only form submissions are answered automatically; free-form email is held for a human.");
+
+  // --- Generic contact-form inquiries (#30357 / #30413, 2026-10-16) ---
+  const cfLabel = "REGRESSION (#30357/#30413): a generic contact-form inquiry must be flagged for a human";
+  const cf = resultsByLabel.get(cfLabel);
+  if (!cf) throw new Error(`ASSERTION FAILED: scenario "${cfLabel}" did not run`);
+  if (cf.ruleDecision.matchedRule !== "contact_form_inquiry") {
+    throw new Error(
+      `ASSERTION FAILED: a contact-form inquiry matched "${cf.ruleDecision.matchedRule}" instead of ` +
+        `contact_form_inquiry. general_faq matches the bare word "location", which is a field label on ` +
+        `every one of these forms, and swallows them with no reply and no needs_human.`
+    );
+  }
+  if (!(cf.ruleDecision.addTags ?? []).includes("needs_human")) {
+    throw new Error(`ASSERTION FAILED: a contact-form inquiry must be tagged needs_human.`);
+  }
+  console.log("Regression check passed: generic contact-form inquiries are flagged for a human, not silently FAQ-tagged (#30357, #30413).");
+
 
   // --- Below the group minimum (#30268, 2026-10-12) ---
   const smallLabel = "REGRESSION (#30268): a party under the group minimum gets public classes, not a quote";

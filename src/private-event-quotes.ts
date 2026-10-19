@@ -121,6 +121,14 @@ const KIDS_KEYWORDS = [
   "children",
   "sweet 16",
   "sweet sixteen",
+  "cookies and canvas",
+  "cookies & canvas",
+  "girls and boys",
+  "boys and girls",
+  "kids event",
+  "kids' event",
+  "for the kids",
+  "for my kids",
 ];
 
 // Catches "turning 10", "10th birthday", "10 year old" / "10-year-old" for
@@ -140,7 +148,30 @@ const KIDS_KEYWORDS = [
 // under. "turning 17", "21st birthday" and "turning 55" deliberately do not
 // match.
 const KIDS_AGE_PATTERN =
-  /\b(?:turning|turns)\s+(?:1[0-6]|[1-9])\b|\b(?:1[0-6]|[1-9])(?:st|nd|rd|th)?\s*[- ]?(?:years?|yrs?)?[- ]?(?:old\b|birthday\b)/i;
+  /\b(?:turning|turns)\s+(?:1[0-6]|[1-9])\b|\b(?:1[0-6]|[1-9])(?:st|nd|rd|th)?\s*[- ]?(?:years?|yrs?)?[- ]?(?:olds?\b|birthdays?\b)/i;
+
+// An age RANGE - how people describe a group of children rather than one
+// birthday child: "ages 7-9", "ages 7 to 9", "7-9 year olds". The single-age
+// pattern above cannot see these, because it needs a number immediately
+// followed by "old" or "birthday". WC #30423 (2026-10-14, Kristina Ripani)
+// wrote "Girls and boys ages 7-9 with a few adults" for a 13-guest party and
+// classified as null, so she was sent the occasion clarifier instead of the
+// kids quote.
+//
+// Both ends must land inside the kids range, so "ages 21-30" and a "Guests:
+// 20-30" headcount are not mistaken for children.
+const KIDS_AGE_RANGE_PATTERN =
+  /\b(?:ages?|aged)\s*:?\s*(\d{1,2})\s*(?:-|\u2013|\u2014|to|through|and|&)\s*(\d{1,2})\b|\b(\d{1,2})\s*(?:-|\u2013|\u2014|to)\s*(\d{1,2})\s*(?:year|yr)s?[\s-]?olds?\b/i;
+
+function mentionsKidsAgeRange(text: string, maxAge: number): boolean {
+  const m = text.match(KIDS_AGE_RANGE_PATTERN);
+  if (!m) return false;
+  const low = Number(m[1] ?? m[3]);
+  const high = Number(m[2] ?? m[4]);
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return false;
+  return low >= 1 && high >= low && high <= maxAge;
+}
+
 
 /** True if the inquiry mentions "donate"/"donation" - triggers the fundraiser template's gift-certificate-donation disclaimer prefix (see FUNDRAISER_DONATION_PREFIX below). */
 export function mentionsGiftDonation(ctx: TicketContext): boolean {
@@ -233,7 +264,7 @@ const STANDARD_KEYWORDS = [
 export function classifyPrivateEvent(ctx: TicketContext): PrivateEventCategory | null {
   const text = getTicketMatchText(ctx);
 
-  if (KIDS_KEYWORDS.some((k) => keywordMatches(text, k)) || KIDS_AGE_PATTERN.test(text)) {
+  if (KIDS_KEYWORDS.some((k) => keywordMatches(text, k)) || KIDS_AGE_PATTERN.test(text) || mentionsKidsAgeRange(text, 16)) {
     return "kids";
   }
   if (FUNDRAISER_KEYWORDS.some((k) => keywordMatches(text, k))) {

@@ -355,6 +355,32 @@ rules:
     force_human_review: false
     add_tags: ["faq_auto_answered", "booking_question"]
 
+  # A human used the generic "Contact from ..." form rather than the Party
+  # Request form. Anything reaching this far is NOT a private-event inquiry
+  # (event_booking_question runs well above) and not a sign-up question - it
+  # is a person who typed a message and expects an answer.
+  #
+  # Added 2026-10-16. Without it these fell through to general_faq, which
+  # matches on the bare word "location" - and every contact-form submission
+  # contains the literal field label "**Location:** ...". The ticket was then
+  # tagged faq_auto_answered with no reply, no needs_human and no escalation,
+  # which reads as handled. #30357 (Jennifer Lighthill, a 40-45 person
+  # hospital holiday party) and #30413 (Kristi Risnes, a Minnesota resort
+  # wanting two events in 2027) both sat in that state. Kristi's message also
+  # contained "office hours", matching a second time.
+  #
+  # Deliberately NOT a fix to general_faq's keywords: that rule is also what
+  # quietly absorbs Eventbrite, SocialBee, payout and missed-call noise -
+  # 308 tickets on this brand - and narrowing it would push all of that into
+  # fallback_unclassified and needs_human. This rule takes only the human
+  # submissions out of its path and leaves the noise where it is.
+  - name: contact_form_inquiry
+    match:
+      any_keywords: ["sent from a contact form on"]
+    action: no_action
+    force_human_review: false
+    add_tags: ["needs_human", "contact_form_inquiry"]
+
   - name: general_faq
     match:
       any_keywords: ["what is", "how does", "do you offer", "hours", "location", "price", "cost", "policy"]
