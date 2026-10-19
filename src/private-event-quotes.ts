@@ -976,7 +976,7 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     ``,
     `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. This means we don't provide cookies either.`,
     ``,
-    `Painting: We can do canvas for the quoted price. Our portfolio has 100's of images available. We will send a link once the deposit is paid. If you don't see a design you like there is an extra $50 flat fee for custom paintings.`,
+    `Painting: We can do canvas for the quoted price. Our portfolio has 100's of images available. We will send a link once the deposit is paid. If you don't see a design you like there is an extra $75 flat fee for custom paintings.`,
     ``,
     `Below is just one of the examples from our portfolio, a colorful "Cutie Unicorn" 🦄`,
     `__EMBED_KIDS_UNICORN__`,
