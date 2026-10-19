@@ -32,7 +32,6 @@ const SERVED_CITIES = [
   "Indianapolis, IN",
   "Greenwood, IN",
   "Grand Rapids, MI",
-  "Cadillac, MI",
   "Fort Myers, FL",
   "Cape Coral, FL",
   "Naples, FL",

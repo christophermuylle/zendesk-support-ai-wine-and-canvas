@@ -500,6 +500,7 @@ const GRAND_RAPIDS_STANDARD_TIERS: PricingTierRow[] = [
 // retail - 5.
 const GROUP_A_FUNDRAISER = { retail: 39, keep: 34 };
 const GROUP_B_FUNDRAISER = { retail: 45, keep: 40 };
+
 const GRAND_RAPIDS_FUNDRAISER = { retail: 40, keep: 35 };
 
 // Kids/Cookies & Canvas: a DIFFERENT grouping than corporate/standard/
@@ -520,9 +521,10 @@ const KIDS_ORLANDO_NAPLES_MIAMI_PRICE = 35;
  * Naples now gets the same +$10 bump as Orlando/Miami.
  */
 export function getPetPortraitPricing(locationKey: PrivateEventLocationKey): { charge: number; retail: number } {
-  // Orlando dropped out of the +$10 group on 2026-10-15 when it moved to
-  // Fort Myers pricing, which carries no bump.
-  const bump = locationKey === "miami" || locationKey === "naples" ? 10 : 0;
+  // Orlando left this group on 2026-10-15 with the move to Fort Myers pricing
+  // and came back on 2026-10-19 with the rest of its rates. INFERRED: the
+  // 2026-10-19 message covered standard, corporate and kids only.
+  const bump = locationKey === "orlando" || locationKey === "miami" || locationKey === "naples" ? 10 : 0;
   return { charge: 45 + bump, retail: 55 + bump };
 }
 
@@ -568,11 +570,13 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   orlando: {
     displayName: "Orlando, FL",
     restaurantListUrl: RESTAURANT_LIST_ORLANDO,
-    // Christopher, 2026-10-15: "program the Private Event inquiries for
-    // Orlando to have the same pricing as Fort Myers" - moved off Group B
-    // onto Group A across every category, and off the Orlando/Naples/Miami
-    // kids rate onto the default. Orlando keeps its own venue list.
-    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+    // Christopher, 2026-10-19: reverses the 2026-10-15 move to Fort Myers
+    // pricing. Orlando is back on Group B across every category - 45/40/35
+    // standard, 50/45/40 corporate, $45 fundraiser retail, $35 kids - and back
+    // in the +$10 pet-portrait group with Naples and Miami. His 2026-10-19
+    // message quoted the bands as 8-30/31-50/51+, then confirmed Orlando
+    // should match every other market's 8-29/30-49/50+ edges.
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
   },
   "fort-lauderdale": {
     displayName: "Fort Lauderdale, FL",
@@ -594,14 +598,20 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
     pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
+  // Christopher, 2026-10-19: "Cadillac is no longer open... You can fold into
+  // Grand Rapids but there would be a $100 travel fee." The KEY stays
+  // "cadillac" so tickets already tagged private_event_location_cadillac keep
+  // resolving (the follow-up sequence reads that tag), but everything the
+  // customer sees is now Grand Rapids: its name, its venue list, its prices -
+  // which this entry already mirrored - plus the higher travel fee for the
+  // northern towns. The slug in config/locations.yaml still gathers Traverse
+  // City, Manistee, Ludington and the rest; they are simply served from Grand
+  // Rapids now.
   cadillac: {
-    displayName: "Cadillac, MI",
-    restaurantListUrl: CADILLAC_VENUE_LIST,
-    // Mirrors Grand Rapids across every category (Christopher, 2026-09-21:
-    // "Cadillac is listed with Grand Rapids from what I sent") - plus its
-    // own $75 travel fee and dedicated venue-list link.
+    displayName: "Grand Rapids, MI",
+    restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
     pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
-    travelFee: "$75 travel fee",
+    travelFee: "$100 travel fee",
   },
 };
 
@@ -745,7 +755,8 @@ export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationK
   miami: "https://wineandcanvas.com/florida/fort-lauderdale/",
   indianapolis: "https://wineandcanvas.com/indianapolis/events/",
   "grand-rapids": "https://wineandcanvas.com/michigan/grand-rapids/",
-  cadillac: null,
+  // Served from Grand Rapids since 2026-10-19 - same public calendar.
+  cadillac: "https://wineandcanvas.com/michigan/grand-rapids/",
 };
 
 /**
@@ -1042,9 +1053,11 @@ function toHtml(plainBody: string, links: Array<{ label: string; url: string }>)
   return `<p>${html}</p>`;
 }
 
-/** "Fort Lauderdale Restaurant List Link" / "Cadillac Venue List Link" - Cadillac's link is a venue list, not a restaurant partner list. */
-function restaurantLinkLabel(locationKey: PrivateEventLocationKey, loc: PrivateEventLocationInfo): string {
-  return locationKey === "cadillac" ? "Cadillac Venue List Link" : `${loc.displayName} Restaurant List Link`;
+/** "Fort Lauderdale Restaurant List Link". The Cadillac special case went away
+ * on 2026-10-19 when that market closed and its area moved to Grand Rapids -
+ * it now sends the Grand Rapids restaurant list like any other Michigan quote. */
+function restaurantLinkLabel(_locationKey: PrivateEventLocationKey, loc: PrivateEventLocationInfo): string {
+  return `${loc.displayName} Restaurant List Link`;
 }
 
 const PARTY_IN_ACTION_LABEL = "📷 See a Party in Action";
