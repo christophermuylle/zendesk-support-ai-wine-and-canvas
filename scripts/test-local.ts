@@ -17,6 +17,7 @@ import { LocationResolver } from "../src/locations.js";
 import { AiDrafter, type IAiDrafter } from "../src/ai.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import { processTicket } from "../src/pipeline.js";
+import { ORDER_CONFIRMATION_FIELD_ID } from "../src/config.js";
 import { resolvePrivateEventLocationKey, getLocationInfo, classifyPrivateEvent } from "../src/private-event-quotes.js";
 import type { ActionType, DraftResult, RuleDecision, TicketContext, ZendeskComment } from "../src/types.js";
 import { extractFormContactName, firstNameFromFullName, looksMachineDerivedName } from "../src/util.js";
@@ -38,6 +39,9 @@ const locations = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
 // human - Christopher, 2026-09-28, after finding tickets quoted days
 // earlier with the field still blank.
 const fieldsSetByTicket = new Map<number, Array<{ id: number; value: string | null }>>();
+/** Every status updateTicket was asked to set, in order - so a test can
+ * assert that a ticket passed through Solved on its way to Closed. */
+const statusesSetByTicket = new Map<number, string[]>();
 
 class MockZendeskClient implements IZendeskClient {
   // priorOrderTicketIds simulates other "New order" tickets that already
@@ -69,6 +73,7 @@ class MockZendeskClient implements IZendeskClient {
       tagsAddedByTicket.set(ticketId, [...(tagsAddedByTicket.get(ticketId) ?? []), tag]);
     }
     bodiesByTicket.set(ticketId, [...(bodiesByTicket.get(ticketId) ?? []), `${body}\n${opts.htmlBody ?? ""}`]);
+    commentedTicketIds.push(ticketId);
     console.log(`\n  -> would post comment (public=${opts.isPublic}, status=${opts.status ?? "unchanged"}, tags=${opts.addTags?.join(",") ?? "-"}, htmlBody=${opts.htmlBody ? "yes" : "no"}, uploads=${opts.uploadTokens?.length ?? 0}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}):`);
     console.log(`     "${body.replace(/\n/g, "\n     ")}"`);
   }
@@ -80,6 +85,18 @@ class MockZendeskClient implements IZendeskClient {
     ticketId: number,
     opts: { status?: string; addTags?: string[]; fields?: Array<{ id: number; value: string | null }> }
   ): Promise<void> {
+    // postComment records its fields; this used to drop them, so the
+    // mechanical rules (newsletter_signup, order_confirmation,
+    // paypal_receipt) - which never post a comment and do all their work
+    // here - had no way to be asserted on at all. Their whole job is the
+    // tagger field and the status sequence.
+    for (const f of opts.fields ?? []) {
+      fieldsSetByTicket.set(ticketId, [...(fieldsSetByTicket.get(ticketId) ?? []), f]);
+    }
+    for (const tag of opts.addTags ?? []) {
+      tagsAddedByTicket.set(ticketId, [...(tagsAddedByTicket.get(ticketId) ?? []), tag]);
+    }
+    statusesSetByTicket.set(ticketId, [...(statusesSetByTicket.get(ticketId) ?? []), opts.status ?? "unchanged"]);
     console.log(
       `\n  -> would set status=${opts.status ?? "unchanged"}, tags+=${opts.addTags?.join(",") ?? "-"}, fields=${opts.fields ? JSON.stringify(opts.fields) : "-"}, no reply`
     );
@@ -109,6 +126,9 @@ class MockZendeskClient implements IZendeskClient {
 const nameCorrections: Array<{ userId: number; name: string }> = [];
 const tagsAddedByTicket = new Map<number, string[]>();
 const bodiesByTicket = new Map<number, string[]>();
+/** Which tickets had ANY comment posted, so a mechanical rule can be
+ * asserted to have posted nothing at all. */
+const commentedTicketIds: number[] = [];
 
 // --- Mock AI: used when no ANTHROPIC_API_KEY is set, so the rules engine can be
 // tested offline. Produces an obviously-fake reply that echoes the rule decision. ---
@@ -911,6 +931,44 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
       brand: "wine_and_canvas",
     },
   },
+  {
+    // The "New submission from ..." wording is what the storefront form
+    // sends (Christopher, 2026-10-22) - different from this brand's
+    // "<Brand> - <City> Newsletter Sign Up" subjects above, and the reason
+    // Painting and Vino needed the rule built from scratch. Pinned here so
+    // a future keyword tidy-up can't drop the wording that catches it.
+    label: 'REGRESSION (2026-10-22): "New submission from Newsletter Signup" is filed, Solved and Closed',
+    ctx: {
+      ticket: {
+        id: 7742,
+        subject: "New submission from Newsletter Signup",
+        description: `Name
+Dana Rivera
+Email
+dana@example.com
+Location
+Indianapolis`,
+        status: "new",
+        requester_id: CUSTOMER_ID,
+        tags: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Dana Rivera", email: "dana@example.com" },
+      comments: [
+        makeComment(
+          `Name
+Dana Rivera
+Email
+dana@example.com
+Location
+Indianapolis`,
+          CUSTOMER_ID
+        ),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1289,6 +1347,62 @@ async function main() {
       `ASSERTION FAILED: newsletter ordering regression - expected finalAction "newsletter_signup_solved_and_closed", got "${newsResult.finalAction}".`
     );
   }
+
+  // --- Newsletter signup: the field value and the status sequence (2026-10-22) ---
+  // The two checks above assert the matched rule and the finalAction string.
+  // Neither could ever have caught a wrong tagger value, because this mock's
+  // updateTicket silently dropped `fields` - and this branch does all its
+  // work in updateTicket, posting no comment. Now recorded, so these assert
+  // what actually lands on the ticket.
+  //
+  // Christopher, 2026-10-22: "Tickets with New submission from Newsletter
+  // Signup subject lines should be closed with reason for contacting
+  // newsletter signup and status closed with solved."
+  const nlNewLabel = 'REGRESSION (2026-10-22): "New submission from Newsletter Signup" is filed, Solved and Closed';
+  const nlNew = resultsByLabel.get(nlNewLabel);
+  if (!nlNew) throw new Error(`ASSERTION FAILED: scenario "${nlNewLabel}" did not run`);
+  if (nlNew.ruleDecision.matchedRule !== "newsletter_signup_ticket") {
+    throw new Error(
+      `ASSERTION FAILED: the "New submission from Newsletter Signup" wording matched ` +
+        `"${nlNew.ruleDecision.matchedRule}" instead of newsletter_signup_ticket. This brand's keywords have to ` +
+        `cover the storefront form's wording, not just "<Brand> - <City> Newsletter Sign Up".`
+    );
+  }
+  if (nlNew.finalAction !== "newsletter_signup_solved_and_closed") {
+    throw new Error(
+      `ASSERTION FAILED: expected newsletter_signup_solved_and_closed, got "${nlNew.finalAction}".`
+    );
+  }
+  if ((statusesSetByTicket.get(7742) ?? []).join(",") !== "solved,closed") {
+    throw new Error(
+      `ASSERTION FAILED: expected the status sequence solved -> closed, got ` +
+        `"${(statusesSetByTicket.get(7742) ?? []).join(",") || "(none)"}". Zendesk rejects a direct new -> closed ` +
+        `jump, so the ticket has to pass through Solved.`
+    );
+  }
+  // The literal, NOT NEWSLETTER_SIGNUP_FIELD_VALUE: this assertion exists to
+  // guard that constant, and comparing it against itself would always pass.
+  // Read off this brand's live field (24492007664795) - option "Newsletter
+  // Sign up", value "newsletter_sign_up". If the option is ever rebuilt,
+  // change it here and in src/config.ts together.
+  const EXPECTED_NEWSLETTER_VALUE = "newsletter_sign_up";
+  const nlNewField = (fieldsSetByTicket.get(7742) ?? []).find((f) => f.id === ORDER_CONFIRMATION_FIELD_ID);
+  if (nlNewField?.value !== EXPECTED_NEWSLETTER_VALUE) {
+    throw new Error(
+      `ASSERTION FAILED: "Reason for Customer Contacting Us" was set to ${JSON.stringify(nlNewField?.value)} ` +
+        `instead of "${EXPECTED_NEWSLETTER_VALUE}". Zendesk silently ignores a tagger value that is not one of ` +
+        `the field's options, leaving the field blank on every ticket. This brand's option is "Newsletter Sign up" ` +
+        `(value "newsletter_sign_up"); Painting and Vino's is "Newsletter Signup" (value "newsletter_signup") - ` +
+        `do not copy one to the other.`
+    );
+  }
+  if (commentedTicketIds.includes(7742)) {
+    throw new Error(
+      `ASSERTION FAILED: a newsletter notification had a comment posted on it. Nobody is asking anything; nothing ` +
+        `should reach the requester, in draft or auto mode.`
+    );
+  }
+  console.log("Regression check passed: newsletter signup notifications are filed as Newsletter Sign up, Solved then Closed, with no reply (2026-10-22).");
   console.log("Regression check passed: newsletter signups from excluded cities are still filed and closed.");
 
   // --- Clarifier checks (Christopher, 2026-09-25) ---
