@@ -104,15 +104,27 @@ locations:
     # name on the quote, and Tampa's own territory list never claimed any of
     # these.
     #
-    # Kept to Sarasota proper for now. He named the city and nothing else, so
-    # Venice, North Port, Englewood, Osprey, Nokomis and Bradenton are NOT
-    # here - several are Manatee County or well down the coast, and guessing
-    # the territory would quote jobs we may not cover. Add them when he says.
+    # The surrounding areas followed on the same day, Christopher 2026-10-26:
+    # "You can include these areas but with a $40 travel fee: Venice, North
+    # Port, Englewood, Osprey, Nokomis and Bradenton." All in scope and priced
+    # identically; the fee split happens one level down, in
+    # resolvePrivateEventLocationKey, which sends those six to the
+    # "sarasota-travel" pricing key.
     #
-    # "sarasota" is safe bare - it is not a surname or a common word, and no
-    # other notable Sarasota exists. Siesta Key, Lido Key and Longboat Key
-    # are distinctive bare too, and all three are Sarasota barrier islands.
-    match_keywords: ["sarasota", "siesta key", "lido key", "longboat key"]
+    # "sarasota" is safe bare - not a surname or a common word, and no other
+    # notable Sarasota exists. Siesta Key, Lido Key and Longboat Key are
+    # distinctive bare too, and all three are Sarasota barrier islands.
+    #
+    # Of the fee towns, most need the state. Venice is Italy and an LA
+    # neighbourhood, Englewood is a city in Colorado, New Jersey and Illinois,
+    # Osprey is a bird and a stock venue name, and Nokomis is a town in
+    # Illinois AND a lake and neighbourhood in Minneapolis - an excluded
+    # market here, so a bare "nokomis" could pull a Minneapolis ticket into a
+    # Florida quote. Bradenton and North Port are distinctive enough bare.
+    match_keywords: ["sarasota", "siesta key", "lido key", "longboat key",
+      "bradenton", "north port",
+      "venice, fl", "venice fl", "englewood, fl", "englewood fl",
+      "osprey, fl", "osprey fl", "nokomis, fl", "nokomis fl"]
 
   - slug: orlando
     display_name: "Orlando, FL"

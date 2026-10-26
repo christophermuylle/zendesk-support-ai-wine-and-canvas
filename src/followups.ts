@@ -101,6 +101,7 @@ const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPo
   // regional pool, not a per-subsite one - no reason to hold Sarasota back
   // the way Bloomington is held below.
   sarasota: "florida",
+  "sarasota-travel": "florida",
   orlando: "florida",
   "fort-lauderdale": "florida",
   miami: "florida",

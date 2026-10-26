@@ -1156,6 +1156,20 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "Bradenton, FL private party (2026-10-26): Sarasota pricing plus a $40 travel fee",
+    ctx: {
+      ticket: {
+        id: 91006, subject: "Party Request from Bree Bradenton",
+        description: "Party Request from Wine & Canvas\n\nName: Bree Bradenton\nEmail: bree@example.com\nPhone: 9415550155\nPreferred Date: 2027-01-30\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bradenton, FL\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Bree Bradenton", email: "bree@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Bree Bradenton\nEmail: bree@example.com\nPhone: 9415550155\nPreferred Date: 2027-01-30\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bradenton, FL\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1636,6 +1650,93 @@ async function main() {
       throw new Error(`ASSERTION FAILED: ${label} - the quote links TAMPA's venue kit. Same pricing, different venues.`);
     }
   }
+  // The $40 travel-fee split, Christopher 2026-10-26: "You can include these
+  // areas but with a $40 travel fee: Venice, North Port, Englewood, Osprey,
+  // Nokomis and Bradenton."
+  {
+    const saraResolver = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
+    const keyFor = (town: string): string | null => {
+      const text = `Party Request from Wine & Canvas\n\nGuests: 20\nLocation: ${town}`;
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91400, description: text, requester_id: CUSTOMER_ID, subject: "Party Request from Wine & Canvas" },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      const loc = saraResolver.resolve(c);
+      return loc ? resolvePrivateEventLocationKey(c, loc.slug) : null;
+    };
+    for (const town of ["Sarasota, FL", "Siesta Key", "Lido Key", "Longboat Key"]) {
+      if (keyFor(town) !== "sarasota") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to ${JSON.stringify(keyFor(town))}, expected "sarasota" (no fee).`
+        );
+      }
+    }
+    for (const town of ["Venice, FL", "North Port", "Englewood, FL", "Osprey, FL", "Nokomis, FL", "Bradenton"]) {
+      if (keyFor(town) !== "sarasota-travel") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to ${JSON.stringify(keyFor(town))}, expected "sarasota-travel". ` +
+            `Quoting one of these with no fee means going back to add $40 after the customer has seen a number.`
+        );
+      }
+    }
+    // Bare forms of the ambiguous ones must NOT reach Florida. Nokomis is the
+    // dangerous one: it is a lake and neighbourhood in Minneapolis, which is
+    // an excluded market on this brand.
+    for (const town of ["Venice, CA", "Venice, Italy", "Englewood, CO", "Lake Nokomis, Minneapolis, MN"]) {
+      const key = keyFor(town);
+      if (key === "sarasota" || key === "sarasota-travel") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to the Sarasota key ${JSON.stringify(key)}. These keywords must ` +
+            `stay state-qualified.`
+        );
+      }
+    }
+    // A ticket naming both must carry the fee.
+    if (keyFor("Sarasota area - the party is in Bradenton") !== "sarasota-travel") {
+      throw new Error(
+        `ASSERTION FAILED: a ticket naming both Sarasota and Bradenton lost the fee. A fee town named anywhere wins.`
+      );
+    }
+    const saraTravel = getLocationInfo("sarasota-travel");
+    if (JSON.stringify(saraTravel.pricing) !== JSON.stringify(getLocationInfo("sarasota").pricing)) {
+      throw new Error(`ASSERTION FAILED: the fee towns are priced differently from Sarasota; only the fee differs.`);
+    }
+    if (saraTravel.restaurantListUrl !== getLocationInfo("sarasota").restaurantListUrl) {
+      throw new Error(`ASSERTION FAILED: the fee towns should share Sarasota's venue kit.`);
+    }
+    if (!saraTravel.travelFee || !saraTravel.travelFee.includes("$40")) {
+      throw new Error(
+        `ASSERTION FAILED: the Sarasota fee towns' travel fee is ${JSON.stringify(saraTravel.travelFee)} - it must ` +
+          `state $40.`
+      );
+    }
+    // The rendered quote, end to end.
+    const bradLabel = "Bradenton, FL private party (2026-10-26): Sarasota pricing plus a $40 travel fee";
+    const brad = resultsByLabel.get(bradLabel);
+    if (!brad) throw new Error(`ASSERTION FAILED: scenario "${bradLabel}" did not run`);
+    if (brad.ruleDecision.matchedRule !== "event_booking_question") {
+      throw new Error(`ASSERTION FAILED: ${bradLabel} - matched "${brad.ruleDecision.matchedRule}".`);
+    }
+    const bradText = (bodiesByTicket.get(91006) ?? []).join("\n");
+    if (!bradText.includes("$40 travel fee")) {
+      throw new Error(
+        `ASSERTION FAILED: ${bradLabel} - the quote does not state the $40 travel fee.`
+      );
+    }
+    if (!bradText.includes("$39")) {
+      throw new Error(`ASSERTION FAILED: ${bradLabel} - not at Sarasota/Tampa rates.`);
+    }
+    // And Sarasota proper must not have picked it up.
+    const saraText = (bodiesByTicket.get(91001) ?? []).join("\n");
+    if (/\$40 travel fee/.test(saraText)) {
+      throw new Error(
+        `ASSERTION FAILED: the Sarasota quote states a $40 travel fee. Sarasota proper and its keys carry none.`
+      );
+    }
+  }
+
   {
     // Same rates as Tampa, read off both entries rather than restated.
     const sara = getLocationInfo("sarasota");

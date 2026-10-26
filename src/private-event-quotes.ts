@@ -306,6 +306,7 @@ export type PrivateEventLocationKey =
   | "naples"
   | "tampa"
   | "sarasota"
+  | "sarasota-travel"
   | "orlando"
   | "fort-lauderdale"
   | "miami"
@@ -348,6 +349,34 @@ const BLOOMINGTON_TRAVEL_FEE_KEYWORDS = [
   "bedford in",
   "french lick",
   "terre haute",
+] as const;
+
+/**
+ * Towns served out of Sarasota that carry a $40 travel fee, as opposed to
+ * Sarasota proper and its barrier islands, which carry none. Christopher,
+ * 2026-10-26: "You can include these areas but with a $40 travel fee:
+ * Venice, North Port, Englewood, Osprey, Nokomis and Bradenton." Same prices
+ * either way - this list only decides whether the fee sentence appears.
+ *
+ * State-qualified where the bare name would misfire, and here that is most of
+ * them: Venice is Italy and a Los Angeles neighbourhood, Englewood is a city
+ * in Colorado, New Jersey and Illinois, Osprey is an ordinary bird and a
+ * stock venue name, and Nokomis is both a town in Illinois and a lake and
+ * neighbourhood in MINNEAPOLIS - which is an excluded market on this brand,
+ * so a bare "nokomis" could pull a Minneapolis ticket into a Florida quote.
+ * Bradenton and North Port are distinctive enough bare.
+ */
+const SARASOTA_TRAVEL_FEE_KEYWORDS = [
+  "venice, fl",
+  "venice fl",
+  "north port",
+  "englewood, fl",
+  "englewood fl",
+  "osprey, fl",
+  "osprey fl",
+  "nokomis, fl",
+  "nokomis fl",
+  "bradenton",
 ] as const;
 
 /** Broward anchors: when one of these is named, the ticket is Fort Lauderdale even if Miami is mentioned too. */
@@ -452,9 +481,17 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
     const mentionsFeeTown = BLOOMINGTON_TRAVEL_FEE_KEYWORDS.some((k) => keywordMatches(text, k));
     return mentionsFeeTown ? "bloomington-travel" : "bloomington";
   }
+  if (matchedSlug === "sarasota") {
+    // Same split as bloomington above, and for the same reason: one price
+    // list, two answers on the fee, and the fee towns WIN when a ticket names
+    // both. Quoting a Bradenton party with no fee means going back to add $40
+    // after the customer has seen a number; naming the fee when the party is
+    // actually in Sarasota proper is a smaller, correctable error.
+    const mentionsFeeTown = SARASOTA_TRAVEL_FEE_KEYWORDS.some((k) => keywordMatches(text, k));
+    return mentionsFeeTown ? "sarasota-travel" : "sarasota";
+  }
   if (
     matchedSlug === "tampa" ||
-    matchedSlug === "sarasota" ||
     matchedSlug === "orlando" ||
     matchedSlug === "indianapolis" ||
     matchedSlug === "bloomington" ||
@@ -636,6 +673,16 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     displayName: "Sarasota, FL",
     restaurantListUrl: RESTAURANT_LIST_SARASOTA,
     pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+  },
+  // Venice, North Port, Englewood, Osprey, Nokomis and Bradenton - served out
+  // of Sarasota at the same prices, with a $40 travel fee. Christopher,
+  // 2026-10-26. Separate KEY rather than a flag so the ticket carries
+  // private_event_location_sarasota-travel and these jobs stay findable.
+  "sarasota-travel": {
+    displayName: "Sarasota, FL",
+    restaurantListUrl: RESTAURANT_LIST_SARASOTA,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+    travelFee: "Please note: a $40 travel fee applies for this location.",
   },
   orlando: {
     displayName: "Orlando, FL",
@@ -869,6 +916,9 @@ export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationK
   // market on that fallback, so it is what tests it. Give it a link the
   // moment a Sarasota page exists.
   sarasota: null,
+  // Served out of Sarasota, which has no page either - same null, same
+  // phone/email fallback.
+  "sarasota-travel": null,
   orlando: "https://wineandcanvas.com/florida/orlando/",
   "fort-lauderdale": "https://wineandcanvas.com/florida/fort-lauderdale/",
   miami: "https://wineandcanvas.com/florida/fort-lauderdale/",
