@@ -94,6 +94,26 @@ locations:
       "town n country", "town 'n country", "town and country, fl", "town and country fl",
       "brandon, fl", "brandon fl", "riverview, fl", "riverview fl"]
 
+  - slug: sarasota
+    display_name: "Sarasota, FL"
+    file: sarasota.md
+    # Added 2026-10-26 (Christopher: "Adding Sarasota to our territories
+    # now. Please quote private events the same pricing as Tampa but send
+    # this SARASOTA RESTAURANT LIST LINK"). Its own slug, not keywords on
+    # tampa: same prices, but a different venue kit and a different display
+    # name on the quote, and Tampa's own territory list never claimed any of
+    # these.
+    #
+    # Kept to Sarasota proper for now. He named the city and nothing else, so
+    # Venice, North Port, Englewood, Osprey, Nokomis and Bradenton are NOT
+    # here - several are Manatee County or well down the coast, and guessing
+    # the territory would quote jobs we may not cover. Add them when he says.
+    #
+    # "sarasota" is safe bare - it is not a surname or a common word, and no
+    # other notable Sarasota exists. Siesta Key, Lido Key and Longboat Key
+    # are distinctive bare too, and all three are Sarasota barrier islands.
+    match_keywords: ["sarasota", "siesta key", "lido key", "longboat key"]
+
   - slug: orlando
     display_name: "Orlando, FL"
     file: orlando.md

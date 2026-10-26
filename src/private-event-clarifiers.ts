@@ -40,6 +40,7 @@ const SERVED_CITIES = [
   "Cape Coral, FL",
   "Naples, FL",
   "Tampa, FL",
+  "Sarasota, FL",
   "Orlando, FL",
   "Fort Lauderdale, FL",
   "Miami, FL",

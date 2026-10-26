@@ -96,6 +96,11 @@ const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPo
   "fort-myers": "florida",
   naples: "florida",
   tampa: "florida",
+  // The Florida sheet already serves all six Florida markets and its codes
+  // carry no city suffix (unlike Indiana's "...in" codes), so it is a
+  // regional pool, not a per-subsite one - no reason to hold Sarasota back
+  // the way Bloomington is held below.
+  sarasota: "florida",
   orlando: "florida",
   "fort-lauderdale": "florida",
   miami: "florida",

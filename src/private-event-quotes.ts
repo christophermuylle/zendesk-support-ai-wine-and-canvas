@@ -305,6 +305,7 @@ export type PrivateEventLocationKey =
   | "fort-myers"
   | "naples"
   | "tampa"
+  | "sarasota"
   | "orlando"
   | "fort-lauderdale"
   | "miami"
@@ -453,6 +454,7 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
   }
   if (
     matchedSlug === "tampa" ||
+    matchedSlug === "sarasota" ||
     matchedSlug === "orlando" ||
     matchedSlug === "indianapolis" ||
     matchedSlug === "bloomington" ||
@@ -593,6 +595,10 @@ const RESTAURANT_LIST_INDIANAPOLIS = "https://drive.google.com/file/d/1ljOmNUETC
 // Indianapolis... Here is the venue kit link". Its own kit, not a share of
 // Indianapolis's.
 const RESTAURANT_LIST_BLOOMINGTON = "https://drive.google.com/file/d/1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0/view?usp=sharing";
+// Christopher, 2026-10-26, adding Sarasota: "Please quote private events the
+// same pricing as Tampa but send this SARASOTA RESTAURANT LIST LINK". Its own
+// kit, not a share of Tampa's.
+const RESTAURANT_LIST_SARASOTA = "https://drive.google.com/file/d/16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw/view?usp=sharing";
 const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-/view?usp=sharing";
 const RESTAURANT_LIST_ORLANDO = "https://drive.google.com/file/d/1zCNFqOIM1xmzI3f5c_3aRcjgsg9Cxywt/view?usp=sharing";
 const RESTAURANT_LIST_FORT_LAUDERDALE = "https://drive.google.com/file/d/1bY8pEwUCLddKcq2mpAtwYNFbea2J4mWJ/view?usp=sharing";
@@ -619,6 +625,16 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   tampa: {
     displayName: "Tampa / St. Pete / Clearwater, FL",
     restaurantListUrl: RESTAURANT_LIST_TAMPA,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+  },
+  // Christopher, 2026-10-26: "Adding Sarasota to our territories now. Please
+  // quote private events the same pricing as Tampa but send this SARASOTA
+  // RESTAURANT LIST LINK." So Tampa's rates exactly - Group A, 39/35/30
+  // standard, 44/40/35 corporate, $39 fundraiser retail keeping $34, $29
+  // kids - no pet-portrait bump (Tampa has none), and its own venue kit.
+  sarasota: {
+    displayName: "Sarasota, FL",
+    restaurantListUrl: RESTAURANT_LIST_SARASOTA,
     pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   orlando: {
@@ -830,6 +846,16 @@ export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationK
   "fort-myers": "https://wineandcanvas.com/florida/fort-myers/",
   naples: "https://wineandcanvas.com/florida/fort-myers/",
   tampa: "https://wineandcanvas.com/florida/tampa/",
+  // NULL deliberately: the Florida site has no Sarasota page. Checked
+  // 2026-10-26 - its Event Locations menu lists Fort Lauderdale, Fort Myers,
+  // Miami, Orlando and Tampa Bay, and nothing else. Per this map's own rule
+  // ("never invent one"), rather than guess /florida/sarasota/ or hand a
+  // Sarasota customer Tampa's calendar, which is a 60-mile drive. Email 3 and
+  // the below-minimum reply both fall back to the (866) 631-0226 /
+  // support@wineandcanvas.com line instead. Sarasota is currently the ONLY
+  // market on that fallback, so it is what tests it. Give it a link the
+  // moment a Sarasota page exists.
+  sarasota: null,
   orlando: "https://wineandcanvas.com/florida/orlando/",
   "fort-lauderdale": "https://wineandcanvas.com/florida/fort-lauderdale/",
   miami: "https://wineandcanvas.com/florida/fort-lauderdale/",

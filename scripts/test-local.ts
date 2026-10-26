@@ -1058,6 +1058,76 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "Sarasota standard private party (2026-10-26): Tampa pricing, Sarasota venue kit",
+    ctx: {
+      ticket: {
+        id: 91001, subject: "Party Request from Sam Sarasota",
+        description: "Party Request from Wine & Canvas\n\nName: Sam Sarasota\nEmail: sam@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Sarasota, FL\nAdditional Info: Birthday party for my sister\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Sam Sarasota", email: "sam@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Sam Sarasota\nEmail: sam@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Sarasota, FL\nAdditional Info: Birthday party for my sister\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Sarasota corporate private party (2026-10-26): Tampa corporate pricing",
+    ctx: {
+      ticket: {
+        id: 91002, subject: "Party Request from Cora Corporate",
+        description: "Party Request from Wine & Canvas\n\nName: Cora Corporate\nEmail: cora@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Sarasota, FL\nAdditional Info: Corporate team building event for our office\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Cora Corporate", email: "cora@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Cora Corporate\nEmail: cora@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Sarasota, FL\nAdditional Info: Corporate team building event for our office\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Sarasota Cookies & Canvas kids party (2026-10-26): Tampa kids pricing",
+    ctx: {
+      ticket: {
+        id: 91003, subject: "Party Request from Kit Kiddo",
+        description: "Party Request from Wine & Canvas\n\nName: Kit Kiddo\nEmail: kit@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Sarasota, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Kit Kiddo", email: "kit@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Kit Kiddo\nEmail: kit@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Sarasota, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Sarasota fundraiser (2026-10-26): Tampa fundraiser pricing",
+    ctx: {
+      ticket: {
+        id: 91004, subject: "Party Request from Fern Fundraiser",
+        description: "Party Request from Wine & Canvas\n\nName: Fern Fundraiser\nEmail: fern@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 30\nLocation: Sarasota, FL\nAdditional Info: Fundraiser for our school PTO\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Fern Fundraiser", email: "fern@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Fern Fundraiser\nEmail: fern@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 30\nLocation: Sarasota, FL\nAdditional Info: Fundraiser for our school PTO\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Sarasota party under the minimum (2026-10-26): no calendar page, so the phone/email fallback",
+    ctx: {
+      ticket: {
+        id: 91005, subject: "Party Request from Tess Tiny",
+        description: "Party Request from Wine & Canvas\n\nName: Tess Tiny\nEmail: tess@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 2\nLocation: Sarasota, FL\nAdditional Info: Just the two of us for a birthday\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Tess Tiny", email: "tess@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Tess Tiny\nEmail: tess@example.com\nPhone: 9415550133\nPreferred Date: 2027-01-16\nPreferred Time: 6:00 PM\nGuests: 2\nLocation: Sarasota, FL\nAdditional Info: Just the two of us for a birthday\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1420,6 +1490,108 @@ async function main() {
   console.log(
     "Regression check passed: ordinary orders solve+close, first payment = Private Event Deposit (Pending), second = Final Balance (Pending), $0 stays Open."
   );
+
+  // --- Sarasota, FL (2026-10-26) ---
+  // Christopher: "Adding Sarasota to our territories now. Please quote
+  // private events the same pricing as Tampa but send this SARASOTA
+  // RESTAURANT LIST LINK."
+  const SARASOTA_VENUE_KIT = "16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw";
+  const TAMPA_VENUE_KIT = "1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-";
+  for (const [ticketId, label, expectedPrices] of [
+    [91001, "Sarasota standard private party (2026-10-26): Tampa pricing, Sarasota venue kit", ["$39", "$35", "$30"]],
+    [91002, "Sarasota corporate private party (2026-10-26): Tampa corporate pricing", ["$44", "$40", "$35"]],
+    [91003, "Sarasota Cookies & Canvas kids party (2026-10-26): Tampa kids pricing", ["$29"]],
+    [91004, "Sarasota fundraiser (2026-10-26): Tampa fundraiser pricing", ["$39", "$34"]],
+  ] as Array<[number, string, string[]]>) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "event_booking_question") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}" instead of event_booking_question.`
+      );
+    }
+    if (r.matchedLocation !== "Sarasota, FL") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - resolved to "${r.matchedLocation}" instead of "Sarasota, FL". If it came out ` +
+          `as Tampa, Sarasota's own slug is not matching and the customer gets Tampa's venue kit and name.`
+      );
+    }
+    const text = (bodiesByTicket.get(ticketId) ?? []).join("\n");
+    for (const price of expectedPrices) {
+      if (!text.includes(price)) {
+        throw new Error(
+          `ASSERTION FAILED: ${label} - the quote does not mention ${price}. Sarasota is Group A, the same as ` +
+            `Tampa: 39/35/30 standard, 44/40/35 corporate, $29 kids, $39 fundraiser retail keeping $34.`
+        );
+      }
+    }
+    if (ticketId === 91001 && (text.includes("$45") || text.includes("$50"))) {
+      throw new Error(`ASSERTION FAILED: ${label} - the quote mentions a Group B rate ($45/$50). Sarasota is Group A.`);
+    }
+    if (!text.includes(SARASOTA_VENUE_KIT)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote does not link Sarasota's own venue kit. He sent a separate kit; ` +
+          `sharing Tampa's would send customers venues 60 miles away.`
+      );
+    }
+    if (text.includes(TAMPA_VENUE_KIT)) {
+      throw new Error(`ASSERTION FAILED: ${label} - the quote links TAMPA's venue kit. Same pricing, different venues.`);
+    }
+  }
+  {
+    // Same rates as Tampa, read off both entries rather than restated.
+    const sara = getLocationInfo("sarasota");
+    const tampa = getLocationInfo("tampa");
+    if (JSON.stringify(sara.pricing) !== JSON.stringify(tampa.pricing)) {
+      throw new Error(
+        `ASSERTION FAILED: Sarasota's pricing has drifted from Tampa's. Christopher, 2026-10-26: "the same ` +
+          `pricing as Tampa". Sarasota: ${JSON.stringify(sara.pricing)}; Tampa: ${JSON.stringify(tampa.pricing)}.`
+      );
+    }
+    if (sara.restaurantListUrl === tampa.restaurantListUrl) {
+      throw new Error(`ASSERTION FAILED: Sarasota and Tampa share a venue kit link. He sent a separate kit.`);
+    }
+    if (sara.travelFee) {
+      throw new Error(`ASSERTION FAILED: Sarasota has a travel fee set (${sara.travelFee}); none was given.`);
+    }
+    // No Sarasota page exists on the live Florida site, so this must stay
+    // null rather than a guessed /florida/sarasota/ or a borrowed Tampa link.
+    if (PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.sarasota !== null) {
+      throw new Error(
+        `ASSERTION FAILED: Sarasota's calendar link is ` +
+          `${JSON.stringify(PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.sarasota)}, expected null. The Florida site had ` +
+          `no Sarasota page as of 2026-10-26 - its Event Locations menu lists Fort Lauderdale, Fort Myers, Miami, ` +
+          `Orlando and Tampa Bay only. Set this the moment a real page exists, but never guess one.`
+      );
+    }
+  }
+  {
+    // The null-calendar fallback, which Sarasota is currently the only market
+    // to exercise - Cadillac was the last one and now shares Grand Rapids'
+    // link, so this path had no coverage at all.
+    const label = "Sarasota party under the minimum (2026-10-26): no calendar page, so the phone/email fallback";
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.finalAction !== "private_event_below_minimum") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - produced "${r.finalAction}" instead of private_event_below_minimum.`
+      );
+    }
+    const text = (bodiesByTicket.get(91005) ?? []).join("\n");
+    if (!text.includes("(866) 631-0226") || !text.includes("support@wineandcanvas.com")) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - with no calendar page the reply must fall back to the phone/email line. ` +
+          `Body was: ${JSON.stringify(text.slice(0, 400))}`
+      );
+    }
+    if (/florida\/sarasota/i.test(text) || text.includes("florida/tampa")) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the reply links a calendar page. /florida/sarasota/ does not exist, and ` +
+          `Tampa's is 60 miles away.`
+      );
+    }
+  }
+  console.log("Regression check passed: Sarasota, FL quotes at Tampa rates across all four categories, with its own venue kit, and falls back to phone/email with no calendar page (2026-10-26).");
 
   // --- Bloomington, IN (2026-10-26) ---
   // Christopher: "New location to add for private event macros. Is the same
