@@ -88,7 +88,11 @@ const MIN_HOURS_BETWEEN_SENDS = 24;
 // them before event_booking_question, per Christopher: "You don't answer
 // Lansing or Kalamazoo private event requests anyway"), so they don't
 // appear in this map.
-const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPool> = {
+// null means "in scope for private events, but no code sheet for it yet" -
+// email 3 then takes the same tag-for-a-human path as a missing credential
+// or an empty pool, rather than handing out a code from another market's
+// sheet that may not redeem. See the bloomington entry.
+const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPool | null> = {
   "fort-myers": "florida",
   naples: "florida",
   tampa: "florida",
@@ -96,12 +100,16 @@ const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPo
   "fort-lauderdale": "florida",
   miami: "florida",
   indianapolis: "indianapolis",
-  // Bloomington draws on the Indiana sheet ("Indianapolis $10 One Time
-  // Codes") - its codes carry the "in" suffix, so they are the Indiana pool
-  // rather than an Indianapolis-only one. FLAGGED to Christopher 2026-10-26:
-  // if those codes are restricted to the Indianapolis subsite in WooCommerce
-  // they will not redeem at Bloomington, and Bloomington needs its own sheet.
-  bloomington: "indianapolis",
+  // Christopher, 2026-10-26: "I will add $10 off promo codes soon as well."
+  // Until then, null - NOT the Indianapolis sheet. Those codes are named
+  // "Indianapolis $10 One Time Codes" and if they are scoped to the
+  // Indianapolis subsite in WooCommerce they would not redeem at Bloomington,
+  // so email 3 would mail a dead code and look like it had worked. With null
+  // the ticket is tagged needs_human + _needs_manual_code instead, which is
+  // visible and says why in the log. One line to change once his sheet
+  // exists: add "bloomington" to PromoPool in src/promo-codes.ts with its
+  // spreadsheet id, and name it here.
+  bloomington: null,
   "grand-rapids": "michigan",
   cadillac: "michigan",
 };
@@ -275,6 +283,15 @@ async function processCandidate(
   }
 
   const pool = PRIVATE_EVENT_LOCATION_PROMO_POOL[locationKey];
+  if (!pool) {
+    console.error(
+      `[followups] ticket ${ticketId}: email 3 is due but ${locationKey} has no promo code sheet yet, so there is ` +
+        `no code to send. Tagging for a human rather than handing out another market's code, which may not redeem. ` +
+        `Add the sheet and map it in PRIVATE_EVENT_LOCATION_PROMO_POOL to turn this back on.`
+    );
+    await deps.zendesk.updateTicket(ticketId, { addTags: ["needs_human", `${stageTag}_needs_manual_code`] });
+    return { outcome: "skipped_not_eligible" };
+  }
   // A THROW here used to vanish. runFollowUpSweep catches per-ticket errors
   // into result.errors and writes nothing to the ticket, so a Google Sheets
   // failure - expired service-account credentials, revoked sheet access, an

@@ -27,6 +27,15 @@ building, fundraisers, and Cookies & Canvas kids' parties. Group minimum and
 duration follow the standard private-event terms - see the quote templates.
 
 ## Contact
-(812) 345-1019 or infobloom@wineandcanvas.com
-Note: this is Bloomington's own phone and inbox, NOT the shared
-(866) 631-0226 / support@wineandcanvas.com used by the other markets.
+(866) 631-0226 or support@wineandcanvas.com - the same shared support
+contact as every other market.
+
+Christopher, 2026-10-26: "We are currently taking over Bloomington to be
+part of our service area for support now. We will change phone number and
+contact info shortly on the page." So support is ours as of that date, and
+the shared contact above is what a reply should give the customer.
+
+The live page still showed Bloomington's own (812) 345-1019 /
+infobloom@wineandcanvas.com on 2026-10-26 - recorded here only so nobody
+re-adds it from the site before it is updated. Do NOT quote it: it is the
+former licensee's line.

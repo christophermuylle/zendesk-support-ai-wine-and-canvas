@@ -14,6 +14,7 @@
 // Usage: npm run test:followups
 
 import { runFollowUpSweep } from "../src/followups.js";
+import { FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG, FOLLOW_UP_3_SENT_TAG } from "../src/config.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import type { ActionType, TicketContext, ZendeskComment, ZendeskTicket } from "../src/types.js";
 
@@ -242,6 +243,93 @@ async function main() {
     sentStages(20).length === 0,
     "ticket 20 (anchor 150h old, but we emailed it 1h ago) must get NOTHING - the 24h minimum gap stops the whole sequence firing in one afternoon (tickets #29001/#29107, 2026-09-24)"
   );
+
+  // --- Bloomington has no promo sheet yet (2026-10-26) ---
+  // Every stage-3 check above stops at the "promo codes aren't configured"
+  // guard, because this harness sets no Google credentials - so none of them
+  // can reach the per-market pool lookup. This runs a second, isolated sweep
+  // with the two credential env vars set (loadPromoCodeConfig only reads env;
+  // no network is touched, because the pool guard returns before
+  // claimNextCode is ever called) so the Bloomington path is actually
+  // exercised.
+  //
+  // Christopher, 2026-10-26: "I will add $10 off promo codes soon as well."
+  // Until his sheet exists, Bloomington's pool is null, and email 3 must tag
+  // for a human rather than hand out an Indianapolis code that may be scoped
+  // to the Indianapolis subsite and would not redeem.
+  {
+    const bloomStore = new Map<number, StoredTicket>();
+    const bt = makeTicket(9100, 130, ["private_event_quote_sent_standard", "private_event_location_bloomington"], "Blair Bloomington");
+    bt.ticket.tags.push(FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG);
+    bloomStore.set(9100, bt);
+    // A market that DOES have a sheet, as the control - it must get past the
+    // pool guard and fail later instead (no network here, so it throws and
+    // takes the throw path), proving the guard is Bloomington-specific.
+    const ct = makeTicket(9101, 130, ["private_event_quote_sent_standard", "private_event_location_indianapolis"], "Casey Control");
+    ct.ticket.tags.push(FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG);
+    bloomStore.set(9101, ct);
+
+    const prevEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const prevKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = "stub@example.iam.gserviceaccount.com";
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "stub-key-never-used-the-pool-guard-returns-first";
+    // Both the pool guard and the later throw path tag the same two tags, so
+    // the tags alone cannot tell them apart. Capture the log line to pin WHICH
+    // path ran - otherwise mapping Bloomington back to the Indianapolis sheet
+    // would still pass every assertion below.
+    const logged: string[] = [];
+    const realError = console.error;
+    console.error = (...args: unknown[]) => {
+      logged.push(args.map(String).join(" "));
+    };
+    let bloomResult;
+    try {
+      bloomResult = await runFollowUpSweep({ zendesk: new InMemoryZendesk(bloomStore) });
+    } finally {
+      console.error = realError;
+      if (prevEmail === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+      else process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL = prevEmail;
+      if (prevKey === undefined) delete process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+      else process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = prevKey;
+    }
+
+    for (const line of logged) realError(line);
+    const bloomLog = logged.find((l) => l.includes("ticket 9100"));
+    assert(
+      bloomLog !== undefined && bloomLog.includes("has no promo code sheet yet"),
+      `Bloomington stage 3 must stop at the "no promo code sheet yet" guard, not fall through to a Sheets call. ` +
+        `Its log line was: ${JSON.stringify(bloomLog ?? "(none)")}. If it mentions a sheet THROWING, Bloomington ` +
+        `is mapped to another market's pool again.`
+    );
+    const controlLog = logged.find((l) => l.includes("ticket 9101"));
+    assert(
+      controlLog !== undefined && !controlLog.includes("has no promo code sheet yet"),
+      `The Indianapolis control must get PAST the pool guard - it has a sheet. Its log line was: ` +
+        `${JSON.stringify(controlLog ?? "(none)")}.`
+    );
+    const bloomTags = bloomStore.get(9100)!.ticket.tags;
+    assert(
+      bloomResult.sent.filter((x) => x.ticketId === 9100).length === 0,
+      "Bloomington stage 3 must NOT send while it has no promo code sheet - an Indianapolis code may be scoped to that subsite and would not redeem"
+    );
+    assert(
+      bloomTags.includes("needs_human") && bloomTags.includes(`${FOLLOW_UP_3_SENT_TAG}_needs_manual_code`),
+      `Bloomington stage 3 must tag needs_human + ${FOLLOW_UP_3_SENT_TAG}_needs_manual_code so it is visible; tags were [${bloomTags.join(", ")}]`
+    );
+    assert(
+      !bloomTags.includes(FOLLOW_UP_3_SENT_TAG),
+      "Bloomington must NOT be marked as having had email 3 sent - the sequence has to resume once the codes exist"
+    );
+    assert(
+      bloomStore.get(9100)!.ticket.status === "pending",
+      "Bloomington stage 3 must leave the ticket pending"
+    );
+    assert(
+      bloomResult.sent.filter((x) => x.ticketId === 9101).length === 0,
+      "the Indianapolis control must not send here either (no network in this harness)"
+    );
+    console.log("Assertion passed: Bloomington stage 3 tags for a human instead of sending another market's promo code.");
+  }
 
   console.log("\nAll assertions passed.");
 }

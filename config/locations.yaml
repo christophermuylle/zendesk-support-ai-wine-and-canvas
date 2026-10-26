@@ -198,11 +198,16 @@ locations:
     #
     # NOTE: Bloomington and its surrounding towns were in
     # out_of_scope_location until this change - they were the Bloomington
-    # licensee's territory (Christopher, 2026-10-01). Only Bloomington itself
-    # has been brought in scope. Bedford, French Lick, Martinsville and Terre
-    # Haute are deliberately still excluded there, because his 2026-10-26
-    # message named only the city. If the whole territory came over, those
-    # need removing from that rule too.
+    # licensee's territory (Christopher, 2026-10-01). He confirmed the
+    # handover on 2026-10-26: "We are currently taking over Bloomington to be
+    # part of our service area for support now", so all of its ticket types
+    # are ours now, not just private events.
+    #
+    # Only Bloomington ITSELF has been brought in scope. Bedford, French Lick,
+    # Martinsville and Terre Haute are deliberately still excluded there,
+    # because both of his 2026-10-26 messages named only the city. If the
+    # whole territory came over, remove them from that rule and add their
+    # keywords here.
     #
     # STATE-QUALIFIED ONLY, and this one is not optional: Bloomington,
     # Minnesota and Bloomington, Illinois are both larger than Bloomington,
