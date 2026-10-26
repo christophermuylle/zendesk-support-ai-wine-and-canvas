@@ -689,9 +689,19 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
     travelFee: "Please note: a travel fee will be required for this location \u2014 we will let you know how much shortly.",
   },
+  // Christopher, 2026-10-26: "I need to update Grand Rapids to not send a kit
+  // right away but to say, a restaurant list will be provided based on the
+  // artist's availability. Just like we say for San Diego on the Painting &
+  // Vino side. This is due to multiple artists in the area." So no link in
+  // the quote - the templates' null branch sends the artist-availability
+  // sentence instead, matching venueOfferLines() in the other brand.
+  //
+  // The constant below is kept, not deleted: the list still exists and still
+  // goes out by hand once the artist is known. Only the automated quote stops
+  // linking it.
   "grand-rapids": {
     displayName: "Grand Rapids, MI",
-    restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
+    restaurantListUrl: null,
     pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   // Christopher, 2026-10-19: "Cadillac is no longer open... You can fold into
@@ -703,9 +713,12 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   // northern towns. The slug in config/locations.yaml still gathers Traverse
   // City, Manistee, Ludington and the rest; they are simply served from Grand
   // Rapids now.
+  // Shown to the customer as Grand Rapids since 2026-10-19, so it follows
+  // Grand Rapids' no-kit treatment too - the same displayed market cannot
+  // link a list for one customer and withhold it for another.
   cadillac: {
     displayName: "Grand Rapids, MI",
-    restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
+    restaurantListUrl: null,
     pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
     travelFee: "Please note: a $100 travel fee applies for this location.",
   },
@@ -967,7 +980,7 @@ function renderCorporateOrStandard(
     ``,
     loc.restaurantListUrl
       ? `Need a space? Here's our partner restaurant list for ${loc.displayName} — most don't charge extra beyond food and beverage costs per person. Take a look and let me know if anything works and I'll check availability.`
-      : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+      : `Need a space? We'll send a partner restaurant list once we confirm which artist is available for your date, rather than guessing at one now.`,
     loc.restaurantListUrl ? `${restaurantLinkLabel(locationKey, loc)}: ${loc.restaurantListUrl}` : null,
     ``,
     `🎨 What We Bring`,
@@ -1033,7 +1046,7 @@ function renderFundraiser(
     `Venue: We are available to host events at any of your preferred locations, including your home.`,
     loc.restaurantListUrl
       ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}. Most do not charge for use of space but they do expect everyone to order food and drinks during the event.`
-      : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+      : `If you're in need of a space, we'll send a partner restaurant list once we confirm which artist is available for your date, rather than guessing at one now.`,
     loc.restaurantListUrl ? `${restaurantLinkLabel(locationKey, loc)}: ${loc.restaurantListUrl}` : null,
     ``,
     `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. Serving alcohol at the party is always optional.`,
@@ -1093,7 +1106,7 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     `Venue: We are 100% mobile so we do not have a studio space. We are available to host events at any of your preferred locations, including your home.`,
     loc.restaurantListUrl
       ? `If you're in need of a space, here's our partner restaurant list for ${loc.displayName}. Most don't charge for use of space but they do expect everyone to order food and drinks during the event.`
-      : `[TODO_CHRISTOPHER: restaurant list link for ${loc.displayName}]`,
+      : `If you're in need of a space, we'll send a partner restaurant list once we confirm which artist is available for your date, rather than guessing at one now.`,
     loc.restaurantListUrl ? `${restaurantLinkLabel(locationKey, loc)}: ${loc.restaurantListUrl}` : null,
     ``,
     `Materials: We provide all the art materials including table covers and aprons. We don't provide food/beverages or tables/chairs. This means we don't provide cookies either.`,

@@ -1128,6 +1128,34 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "Grand Rapids private party (2026-10-26): no kit link, artist-availability line instead",
+    ctx: {
+      ticket: {
+        id: 91101, subject: "Party Request from Gail Rapids",
+        description: "Party Request from Wine & Canvas\n\nName: Gail Rapids\nEmail: gail@example.com\nPhone: 6165550144\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Grand Rapids, MI\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Gail Rapids", email: "gail@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Gail Rapids\nEmail: gail@example.com\nPhone: 6165550144\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Grand Rapids, MI\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Traverse City private party (2026-10-26): served as Grand Rapids, so also no kit link",
+    ctx: {
+      ticket: {
+        id: 91102, subject: "Party Request from Tru Traverse",
+        description: "Party Request from Wine & Canvas\n\nName: Tru Traverse\nEmail: tru@example.com\nPhone: 6165550144\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Traverse City, MI\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Tru Traverse", email: "tru@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Tru Traverse\nEmail: tru@example.com\nPhone: 6165550144\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Traverse City, MI\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1490,6 +1518,76 @@ async function main() {
   console.log(
     "Regression check passed: ordinary orders solve+close, first payment = Private Event Deposit (Pending), second = Final Balance (Pending), $0 stays Open."
   );
+
+  // --- Grand Rapids sends no kit (2026-10-26) ---
+  // Christopher: "I need to update Grand Rapids to not send a kit right away
+  // but to say, a restaurant list will be provided based on the artist's
+  // availability... This is due to multiple artists in the area."
+  //
+  // Cadillac is checked alongside it: it has displayed as Grand Rapids since
+  // 2026-10-19, and the same displayed market must not link a list for one
+  // customer and withhold it from another.
+  const GRAND_RAPIDS_KIT = "1_tpH4iq8jeYF07RXhH-FjC7BhPl5SOtZ";
+  for (const [ticketId, label] of [
+    [91101, "Grand Rapids private party (2026-10-26): no kit link, artist-availability line instead"],
+    [91102, "Traverse City private party (2026-10-26): served as Grand Rapids, so also no kit link"],
+  ] as Array<[number, string]>) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    // NOT r.matchedLocation: that is the locations.yaml display_name, which
+    // for the Traverse City side is still "Cadillac, MI" (internal only). The
+    // customer-facing name comes from the pricing key's displayName, so the
+    // body is what matters - and it must read Grand Rapids for both.
+    const text = (bodiesByTicket.get(ticketId) ?? []).join("\n");
+    if (!text.includes("Grand Rapids, MI")) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote does not name Grand Rapids, MI. Cadillac closed on 2026-10-19 and ` +
+          `its area is served from Grand Rapids, so that is the name the customer should see.`
+      );
+    }
+    if (text.includes(GRAND_RAPIDS_KIT)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote still links the Grand Rapids kit. It must not go out ` +
+          `automatically: there are multiple artists in the area and the right list depends on who covers the date.`
+      );
+    }
+    if (!/once we confirm which artist is available for your date/i.test(text)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote does not tell the customer the restaurant list follows once the ` +
+          `artist is confirmed. Body was: ${JSON.stringify(text.slice(0, 500))}`
+      );
+    }
+    if (/Restaurant List Link/i.test(text)) {
+      throw new Error(`ASSERTION FAILED: ${label} - the quote still carries a "Restaurant List Link" label.`);
+    }
+  }
+  // Markets that DO have a kit must be unaffected - this change is Michigan
+  // only, and the null branch is shared by all three templates.
+  for (const [ticketId, label, kit] of [
+    [91001, "Sarasota standard private party (2026-10-26): Tampa pricing, Sarasota venue kit", "16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw"],
+    [90901, "Bloomington standard private party (2026-10-26): Indianapolis pricing, Bloomington venue kit", "1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0"],
+  ] as Array<[number, string, string]>) {
+    const text = (bodiesByTicket.get(ticketId) ?? []).join("\n");
+    if (!text.includes(kit)) {
+      throw new Error(`ASSERTION FAILED: ${label} - lost its kit link when Grand Rapids' was removed.`);
+    }
+    if (/once we confirm which artist is available/i.test(text)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - a market WITH a kit is sending the artist-availability line as well.`
+      );
+    }
+  }
+  // The null branch used to emit a literal "[TODO_CHRISTOPHER: restaurant
+  // list link for X]" placeholder. Nothing reached it while every market had
+  // a kit; Grand Rapids now does, so this guards every rendered body.
+  for (const [ticketId, bodies] of bodiesByTicket) {
+    if (bodies.join("\n").includes("TODO_CHRISTOPHER")) {
+      throw new Error(
+        `ASSERTION FAILED: ticket ${ticketId}'s reply contains a TODO_CHRISTOPHER placeholder - that is customer-facing text.`
+      );
+    }
+  }
+  console.log("Regression check passed: Grand Rapids and Cadillac send no kit link, just the artist-availability line; markets with a kit keep theirs (2026-10-26).");
 
   // --- Sarasota, FL (2026-10-26) ---
   // Christopher: "Adding Sarasota to our territories now. Please quote
