@@ -110,6 +110,8 @@ const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPo
   // exists: add "bloomington" to PromoPool in src/promo-codes.ts with its
   // spreadsheet id, and name it here.
   bloomington: null,
+  // Same as bloomington - served from there, and no sheet for it yet either.
+  "bloomington-travel": null,
   "grand-rapids": "michigan",
   cadillac: "michigan",
 };

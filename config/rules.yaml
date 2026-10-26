@@ -155,24 +155,16 @@ rules:
         # while Bloomington matched here its tickets never reached the quote
         # system at all.)
         #
-        # ONLY the city was removed. Its surrounding towns below stay
-        # excluded: both of his 2026-10-26 messages named Bloomington and
-        # nothing else, and these towns were listed separately as the rest of
-        # that licensee's territory. If they came over too, remove them here
-        # and the matching entry in config/locations.yaml needs the keywords.
+        # The rest of that licensee's territory followed on the same day:
+        # "Martinsville is in service area with no travel fee. Bedford, French
+        # Link [Lick], and Terre Haute are available for parties but will
+        # require a service fee." So Martinsville, Bedford, French Lick and
+        # Terre Haute are all gone from this rule too - they now sit on the
+        # bloomington slug in config/locations.yaml. The fee distinction is a
+        # pricing-key question, not a scope one, and lives in
+        # resolvePrivateEventLocationKey.
         #
-        # The rest of the Bloomington licensee's territory, separated out of
-        # Christopher's Southside Indianapolis list on 2026-10-01. He put
-        # Martinsville and Terre Haute here rather than with Southside.
-        # "bedford" and "martinsville" need the state - Bedford is a city in
-        # half a dozen states and a surname, Martinsville likewise. French
-        # Lick and Terre Haute are distinctive enough bare.
-        - "bedford, in"
-        - "bedford in"
-        - "french lick"
-        - "martinsville, in"
-        - "martinsville in"
-        - "terre haute"
+        # Nothing of the former Bloomington territory is excluded any more.
         - "minneapolis, mn"
         - "rochester / southeastern minnesota"
         - "rochester, mn"

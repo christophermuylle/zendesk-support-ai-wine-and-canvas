@@ -1030,6 +1030,34 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "Bedford, IN private party (2026-10-26): Bloomington pricing plus the TBD travel-fee line",
+    ctx: {
+      ticket: {
+        id: 90905, subject: "Party Request from Bud Bedford",
+        description: "Party Request from Wine & Canvas\n\nName: Bud Bedford\nEmail: bud@example.com\nPhone: 8125550177\nPreferred Date: 2026-12-19\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bedford, IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Bud Bedford", email: "bud@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Bud Bedford\nEmail: bud@example.com\nPhone: 8125550177\nPreferred Date: 2026-12-19\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bedford, IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Martinsville, IN private party (2026-10-26): in service area, NO travel fee",
+    ctx: {
+      ticket: {
+        id: 90906, subject: "Party Request from Mara Martinsville",
+        description: "Party Request from Wine & Canvas\n\nName: Mara Martinsville\nEmail: mara@example.com\nPhone: 7655550188\nPreferred Date: 2026-12-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Martinsville, IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Mara Martinsville", email: "mara@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Mara Martinsville\nEmail: mara@example.com\nPhone: 7655550188\nPreferred Date: 2026-12-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Martinsville, IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1466,6 +1494,73 @@ async function main() {
       );
     }
   }
+  // The rendered quote for a fee town, end to end.
+  {
+    const label = "Bedford, IN private party (2026-10-26): Bloomington pricing plus the TBD travel-fee line";
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "event_booking_question") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}". Bedford was in ` +
+          `out_of_scope_location until 2026-10-26; if that is what matched, it is back.`
+      );
+    }
+    const text = (bodiesByTicket.get(90905) ?? []).join("\n");
+    if (!/travel fee will be required/i.test(text)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote does not tell the customer a travel fee will be required. ` +
+          `Christopher, 2026-10-26: Bedford, French Lick and Terre Haute "will require a service fee".`
+      );
+    }
+    if (!/let you know how much shortly/i.test(text)) {
+      throw new Error(`ASSERTION FAILED: ${label} - the quote omits the "we will let you know how much shortly" half.`);
+    }
+    if (!text.includes("$39")) {
+      throw new Error(`ASSERTION FAILED: ${label} - the quote is not at Bloomington/Indianapolis rates.`);
+    }
+    // And the no-fee markets must NOT have picked up that sentence. Checked
+    // against the SPECIFIC wording, not the words "travel fee": every
+    // market's corporate template already carries a generic "Travel fees may
+    // apply outside the greater city limits." line, so a looser test here
+    // fails on all of them.
+    const bloomText = (bodiesByTicket.get(90901) ?? []).join("\n");
+    if (/will be required/i.test(bloomText) || /let you know how much shortly/i.test(bloomText)) {
+      throw new Error(
+        `ASSERTION FAILED: the Bloomington quote states that a travel fee WILL be required. Bloomington, ` +
+          `Martinsville and Ellettsville carry none - telling those customers a fee is coming would lose jobs.`
+      );
+    }
+  }
+
+  // Martinsville, end to end THROUGH THE RULES ENGINE. The key-resolution
+  // checks below call the resolver directly, which skips
+  // out_of_scope_location entirely - so putting Martinsville back in that
+  // rule passed every one of them. This scenario is what catches that.
+  {
+    const label = "Martinsville, IN private party (2026-10-26): in service area, NO travel fee";
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "event_booking_question") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}" instead of event_booking_question. ` +
+          `If that is out_of_scope_location, Martinsville is excluded again - Christopher, 2026-10-26: ` +
+          `"Martinsville is in service area with no travel fee."`
+      );
+    }
+    if (r.matchedLocation !== "Bloomington, IN") {
+      throw new Error(`ASSERTION FAILED: ${label} - resolved to ${JSON.stringify(r.matchedLocation)}.`);
+    }
+    const text = (bodiesByTicket.get(90906) ?? []).join("\n");
+    if (/will be required/i.test(text) || /let you know how much shortly/i.test(text)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote tells Martinsville a travel fee will be required. It has none.`
+      );
+    }
+    if (!text.includes("$39")) {
+      throw new Error(`ASSERTION FAILED: ${label} - not at Bloomington/Indianapolis rates.`);
+    }
+  }
+
   // The location KEY, which is what becomes the private_event_location_*
   // tag on the live send and is what the follow-up sweep reads at email 3 to
   // pick the calendar link and promo pool. Asserted directly rather than off
@@ -1512,6 +1607,88 @@ async function main() {
         );
       }
     }
+    // Travel-fee split, Christopher 2026-10-26. Same slug, same prices, two
+    // answers on the fee.
+    const NO_FEE_TOWNS = ["Bloomington, IN", "Martinsville, IN", "Ellettsville"];
+    const FEE_TOWNS = ["Bedford, IN", "French Lick", "Terre Haute"];
+    const keyFor = (town: string): string | null => {
+      const text = `Party Request from Wine & Canvas\n\nGuests: 20\nLocation: ${town}`;
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91302, description: text, requester_id: CUSTOMER_ID, subject: "Party Request from Wine & Canvas" },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      const loc = bloomResolver.resolve(c);
+      return loc ? resolvePrivateEventLocationKey(c, loc.slug) : null;
+    };
+    for (const town of NO_FEE_TOWNS) {
+      const key = keyFor(town);
+      if (key !== "bloomington") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to ${JSON.stringify(key)}, expected "bloomington" (no travel fee). ` +
+            `Christopher, 2026-10-26: "Martinsville is in service area with no travel fee."`
+        );
+      }
+      if (getLocationInfo("bloomington").travelFee) {
+        throw new Error(`ASSERTION FAILED: the no-fee Bloomington key has a travel fee set.`);
+      }
+    }
+    for (const town of FEE_TOWNS) {
+      const key = keyFor(town);
+      if (key !== "bloomington-travel") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to ${JSON.stringify(key)}, expected "bloomington-travel". ` +
+            `Christopher, 2026-10-26: "Bedford, French Link [Lick], and Terre Haute are available for parties but ` +
+            `will require a service fee." Quoting one of these with no fee means going back to add one.`
+        );
+      }
+    }
+    // A ticket naming both must carry the fee - the recoverable error. See
+    // the note in resolvePrivateEventLocationKey for why this is the
+    // opposite of the Fort Myers/Naples rule.
+    const bothKey = keyFor("Bloomington, IN area - the party is in Bedford, IN");
+    if (bothKey !== "bloomington-travel") {
+      throw new Error(
+        `ASSERTION FAILED: a ticket naming both Bloomington and Bedford resolved to ${JSON.stringify(bothKey)}. ` +
+          `A fee town named anywhere has to win, or a Bedford party gets quoted with no fee.`
+      );
+    }
+    // The fee towns are priced identically - only the fee sentence differs.
+    const travel = getLocationInfo("bloomington-travel");
+    if (JSON.stringify(travel.pricing) !== JSON.stringify(getLocationInfo("bloomington").pricing)) {
+      throw new Error(`ASSERTION FAILED: the fee towns are priced differently from Bloomington; only the fee differs.`);
+    }
+    if (travel.restaurantListUrl !== getLocationInfo("bloomington").restaurantListUrl) {
+      throw new Error(`ASSERTION FAILED: the fee towns should share Bloomington's venue kit.`);
+    }
+    // His exact instruction: "just say 'travel fee will be required, we will
+    // let you know how much shortly.'" No invented amount.
+    if (!travel.travelFee) {
+      throw new Error(`ASSERTION FAILED: the fee towns carry no travel-fee sentence at all.`);
+    }
+    if (!/travel fee will be required/i.test(travel.travelFee) || !/let you know how much shortly/i.test(travel.travelFee)) {
+      throw new Error(
+        `ASSERTION FAILED: the travel-fee sentence is ${JSON.stringify(travel.travelFee)}. Christopher gave the ` +
+          `copy verbatim: "travel fee will be required, we will let you know how much shortly."`
+      );
+    }
+    if (/\$\d/.test(travel.travelFee)) {
+      throw new Error(
+        `ASSERTION FAILED: the travel-fee sentence names an amount (${JSON.stringify(travel.travelFee)}). Nobody ` +
+          `knows it yet - he has to ask the artist.`
+      );
+    }
+    // Cadillac still states its real amount, so folding the amount into the
+    // sentence did not lose it.
+    const cadillacFee = getLocationInfo("cadillac").travelFee;
+    if (!cadillacFee || !cadillacFee.includes("$100")) {
+      throw new Error(
+        `ASSERTION FAILED: Grand Rapids/Cadillac's travel fee is ${JSON.stringify(cadillacFee)} - it must still ` +
+          `state $100. travelFee now holds the whole sentence rather than just the amount.`
+      );
+    }
+
     // Same rates as Indianapolis, read off both entries rather than restated.
     const bloom = getLocationInfo("bloomington");
     const indy = getLocationInfo("indianapolis");

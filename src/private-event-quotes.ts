@@ -310,6 +310,7 @@ export type PrivateEventLocationKey =
   | "miami"
   | "indianapolis"
   | "bloomington"
+  | "bloomington-travel"
   | "grand-rapids"
   | "cadillac";
 
@@ -330,6 +331,24 @@ export type PrivateEventLocationKey =
  * caller below - because a Broward event that happens to mention Miami is a
  * Broward event.
  */
+/**
+ * Towns served out of Bloomington that carry a travel fee, as opposed to
+ * Bloomington, Martinsville and Ellettsville, which do not (Christopher,
+ * 2026-10-26). Same prices either way - this list only decides whether the
+ * quote carries the fee sentence.
+ *
+ * State-qualified where the bare name is ambiguous, on the same reasoning as
+ * the locations.yaml entry: Bedford is a city in half a dozen states and a
+ * surname, and Martinsville likewise. French Lick and Terre Haute are
+ * distinctive enough bare.
+ */
+const BLOOMINGTON_TRAVEL_FEE_KEYWORDS = [
+  "bedford, in",
+  "bedford in",
+  "french lick",
+  "terre haute",
+] as const;
+
 /** Broward anchors: when one of these is named, the ticket is Fort Lauderdale even if Miami is mentioned too. */
 const BROWARD_ANCHOR_KEYWORDS = ["fort lauderdale", "ft lauderdale", "ft. lauderdale"] as const;
 
@@ -414,6 +433,23 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
     const mentionsNaples = NAPLES_SIDE_KEYWORDS.some((k) => keywordMatches(text, k));
     const mentionsFtMyers = FORT_MYERS_ANCHOR_KEYWORDS.some((k) => keywordMatches(text, k));
     return mentionsNaples && !mentionsFtMyers ? "naples" : "fort-myers";
+  }
+  if (matchedSlug === "bloomington") {
+    // One slug, one price list, two travel-fee answers. Christopher,
+    // 2026-10-26: "Martinsville is in service area with no travel fee.
+    // Bedford, French Link [Lick], and Terre Haute are available for parties
+    // but will require a service fee."
+    //
+    // The fee towns WIN when a ticket names both, which is the opposite of
+    // the Fort Myers/Naples and Fort Lauderdale/Miami rules above. Those
+    // split two different PRICE lists, where the anchor city settles which
+    // market the job belongs to. Here the price is identical either way and
+    // the only question is whether a fee is owed - so the costly error is
+    // quoting a Bedford party with no fee and having to add one afterwards.
+    // Mentioning the fee unnecessarily is recoverable: the sentence promises
+    // a number later, so we can come back with "no fee after all".
+    const mentionsFeeTown = BLOOMINGTON_TRAVEL_FEE_KEYWORDS.some((k) => keywordMatches(text, k));
+    return mentionsFeeTown ? "bloomington-travel" : "bloomington";
   }
   if (
     matchedSlug === "tampa" ||
@@ -535,7 +571,15 @@ export interface PrivateEventLocationInfo {
   /** Restaurant/venue list link for this city (rendered as a real hyperlink, not raw HTML). */
   restaurantListUrl: string | null;
   pricing: PrivateEventPricing;
-  /** Set only for markets with an extra service fee (currently just Cadillac). */
+  /**
+   * The COMPLETE customer-facing sentence about an extra service fee, or
+   * unset for markets with none. It used to hold just the amount, dropped
+   * into a fixed "Please note: X applies for this location." template -
+   * which could not express Christopher's 2026-10-26 wording for the towns
+   * whose fee is not known yet ("travel fee will be required, we will let
+   * you know how much shortly"). Holding the whole sentence keeps that copy
+   * his, verbatim, instead of bending it to fit a template.
+   */
   travelFee?: string;
 }
 
@@ -610,6 +654,21 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     restaurantListUrl: RESTAURANT_LIST_BLOOMINGTON,
     pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
+  // Bedford, French Lick and Terre Haute - served out of Bloomington at the
+  // same prices, but with a travel fee whose amount nobody knows yet.
+  // Christopher, 2026-10-26: "We will have to ask our artist what the fee is
+  // so just say 'travel fee will be required, we will let you know how much
+  // shortly.'" His wording, kept.
+  //
+  // Separate KEY rather than a flag so the ticket carries
+  // private_event_location_bloomington-travel and these jobs can be found
+  // later - someone has to go back and quote the actual fee.
+  "bloomington-travel": {
+    displayName: "Bloomington, IN",
+    restaurantListUrl: RESTAURANT_LIST_BLOOMINGTON,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+    travelFee: "Please note: a travel fee will be required for this location \u2014 we will let you know how much shortly.",
+  },
   "grand-rapids": {
     displayName: "Grand Rapids, MI",
     restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
@@ -628,7 +687,7 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     displayName: "Grand Rapids, MI",
     restaurantListUrl: RESTAURANT_LIST_GRAND_RAPIDS,
     pricing: { corporateTiers: GRAND_RAPIDS_CORPORATE_TIERS, standardTiers: GRAND_RAPIDS_STANDARD_TIERS, ...GRAND_RAPIDS_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
-    travelFee: "$100 travel fee",
+    travelFee: "Please note: a $100 travel fee applies for this location.",
   },
 };
 
@@ -691,9 +750,9 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** "Please note: $75 travel fee applies for this location." or null if the location has none - null (not "") so the join-filter below can drop it cleanly without eating intentional blank spacer lines. */
+/** The location's travel-fee sentence, or null if it has none - null (not "") so the join-filter below can drop it cleanly without eating intentional blank spacer lines. */
 function travelFeeLine(loc: PrivateEventLocationInfo): string | null {
-  return loc.travelFee ? `Please note: ${loc.travelFee} applies for this location.` : null;
+  return loc.travelFee ?? null;
 }
 
 /** Joins template lines, dropping only null/undefined entries (conditional lines) - keeps "" entries, which are intentional blank-line paragraph breaks. */
@@ -774,6 +833,8 @@ export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationK
   // Read off the Bloomington subsite's own nav on 2026-10-26 (its "Event
   // Calendar" link), not pattern-matched from Indianapolis's.
   bloomington: "https://wineandcanvas.com/bloomington/events/",
+  // Served out of Bloomington, so the same public calendar.
+  "bloomington-travel": "https://wineandcanvas.com/bloomington/events/",
   "grand-rapids": "https://wineandcanvas.com/michigan/grand-rapids/",
   // Served from Grand Rapids since 2026-10-19 - same public calendar.
   cadillac: "https://wineandcanvas.com/michigan/grand-rapids/",

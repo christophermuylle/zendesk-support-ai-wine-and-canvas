@@ -203,11 +203,12 @@ locations:
     # part of our service area for support now", so all of its ticket types
     # are ours now, not just private events.
     #
-    # Only Bloomington ITSELF has been brought in scope. Bedford, French Lick,
-    # Martinsville and Terre Haute are deliberately still excluded there,
-    # because both of his 2026-10-26 messages named only the city. If the
-    # whole territory came over, remove them from that rule and add their
-    # keywords here.
+    # The surrounding towns came over too, Christopher 2026-10-26:
+    # "Martinsville is in service area with no travel fee. Bedford, French
+    # Link [Lick], and Terre Haute are available for parties but will require
+    # a service fee." All four are in scope and priced identically; the fee
+    # split happens one level down, in resolvePrivateEventLocationKey, which
+    # sends the three fee towns to the "bloomington-travel" pricing key.
     #
     # STATE-QUALIFIED ONLY, and this one is not optional: Bloomington,
     # Minnesota and Bloomington, Illinois are both larger than Bloomington,
@@ -217,8 +218,16 @@ locations:
     # into "bloomington in", so both the comma and comma-less forms are
     # needed. Ellettsville and Unionville are Monroe County and distinctive
     # enough bare.
+    #
+    # "bedford" and "martinsville" carry the state for the same reason the old
+    # out_of_scope entries did: Bedford is a city in half a dozen states and a
+    # surname, Martinsville likewise, and the form body contains the
+    # customer's own name. French Lick and Terre Haute are distinctive enough
+    # bare.
     match_keywords: ["bloomington, in", "bloomington in", "ellettsville", "unionville, in",
-      "unionville in", "monroe county, in", "monroe county in"]
+      "unionville in", "monroe county, in", "monroe county in",
+      "martinsville, in", "martinsville in",
+      "bedford, in", "bedford in", "french lick", "terre haute"]
 
   - slug: grand-rapids
     display_name: "Grand Rapids, MI"
