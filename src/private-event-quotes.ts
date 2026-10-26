@@ -309,6 +309,7 @@ export type PrivateEventLocationKey =
   | "fort-lauderdale"
   | "miami"
   | "indianapolis"
+  | "bloomington"
   | "grand-rapids"
   | "cadillac";
 
@@ -418,6 +419,7 @@ export function resolvePrivateEventLocationKey(ctx: TicketContext, matchedSlug: 
     matchedSlug === "tampa" ||
     matchedSlug === "orlando" ||
     matchedSlug === "indianapolis" ||
+    matchedSlug === "bloomington" ||
     matchedSlug === "grand-rapids" ||
     matchedSlug === "cadillac"
   ) {
@@ -543,6 +545,10 @@ export interface PrivateEventLocationInfo {
 // separate from the "restaurant partner" lists below).
 // Updated 2026-10-16 (Christopher: "Updated Indianapolis Venue kit").
 const RESTAURANT_LIST_INDIANAPOLIS = "https://drive.google.com/file/d/1ljOmNUETCo9iB6Cya5NycSgwNK-fjfza/view?usp=sharing";
+// Christopher, 2026-10-26, adding Bloomington: "Is the same pricing as
+// Indianapolis... Here is the venue kit link". Its own kit, not a share of
+// Indianapolis's.
+const RESTAURANT_LIST_BLOOMINGTON = "https://drive.google.com/file/d/1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0/view?usp=sharing";
 const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-/view?usp=sharing";
 const RESTAURANT_LIST_ORLANDO = "https://drive.google.com/file/d/1zCNFqOIM1xmzI3f5c_3aRcjgsg9Cxywt/view?usp=sharing";
 const RESTAURANT_LIST_FORT_LAUDERDALE = "https://drive.google.com/file/d/1bY8pEwUCLddKcq2mpAtwYNFbea2J4mWJ/view?usp=sharing";
@@ -591,6 +597,17 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   indianapolis: {
     displayName: "Indianapolis, IN",
     restaurantListUrl: RESTAURANT_LIST_INDIANAPOLIS,
+    pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
+  },
+  // Christopher, 2026-10-26: "New location to add for private event macros.
+  // Is the same pricing as Indianapolis. Please add Bloomington, Indiana for
+  // private party standard, corporate, Kids, and fundraiser." So: Group A
+  // across the board, same as Indianapolis - 39/35/30 standard, 44/40/35
+  // corporate, $39 fundraiser retail keeping $34, $29 kids - with its own
+  // venue kit. No pet-portrait bump, matching Indianapolis.
+  bloomington: {
+    displayName: "Bloomington, IN",
+    restaurantListUrl: RESTAURANT_LIST_BLOOMINGTON,
     pricing: { corporateTiers: GROUP_A_CORPORATE_TIERS, standardTiers: GROUP_A_STANDARD_TIERS, ...GROUP_A_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_DEFAULT_PRICE },
   },
   "grand-rapids": {
@@ -754,6 +771,9 @@ export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationK
   "fort-lauderdale": "https://wineandcanvas.com/florida/fort-lauderdale/",
   miami: "https://wineandcanvas.com/florida/fort-lauderdale/",
   indianapolis: "https://wineandcanvas.com/indianapolis/events/",
+  // Read off the Bloomington subsite's own nav on 2026-10-26 (its "Event
+  // Calendar" link), not pattern-matched from Indianapolis's.
+  bloomington: "https://wineandcanvas.com/bloomington/events/",
   "grand-rapids": "https://wineandcanvas.com/michigan/grand-rapids/",
   // Served from Grand Rapids since 2026-10-19 - same public calendar.
   cadillac: "https://wineandcanvas.com/michigan/grand-rapids/",

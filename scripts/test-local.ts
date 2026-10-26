@@ -18,7 +18,12 @@ import { AiDrafter, type IAiDrafter } from "../src/ai.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import { processTicket } from "../src/pipeline.js";
 import { ORDER_CONFIRMATION_FIELD_ID } from "../src/config.js";
-import { resolvePrivateEventLocationKey, getLocationInfo, classifyPrivateEvent } from "../src/private-event-quotes.js";
+import {
+  resolvePrivateEventLocationKey,
+  getLocationInfo,
+  classifyPrivateEvent,
+  PRIVATE_EVENT_LOCATION_CALENDAR_LINKS,
+} from "../src/private-event-quotes.js";
 import type { ActionType, DraftResult, RuleDecision, TicketContext, ZendeskComment } from "../src/types.js";
 import { extractFormContactName, firstNameFromFullName, looksMachineDerivedName } from "../src/util.js";
 
@@ -969,6 +974,62 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  {
+    label: "Bloomington standard private party (2026-10-26): Indianapolis pricing, Bloomington venue kit",
+    ctx: {
+      ticket: {
+        id: 90901, subject: "Party Request from Bea Standard",
+        description: "Party Request from Wine & Canvas\n\nName: Bea Standard\nEmail: bea@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bloomington, IN\nAdditional Info: Birthday party for my sister\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Bea Standard", email: "bea@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Bea Standard\nEmail: bea@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bloomington, IN\nAdditional Info: Birthday party for my sister\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Bloomington corporate private party (2026-10-26): Indianapolis corporate pricing",
+    ctx: {
+      ticket: {
+        id: 90902, subject: "Party Request from Cal Corporate",
+        description: "Party Request from Wine & Canvas\n\nName: Cal Corporate\nEmail: cal@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bloomington, IN\nAdditional Info: Corporate team building event for our office\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Cal Corporate", email: "cal@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Cal Corporate\nEmail: cal@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bloomington, IN\nAdditional Info: Corporate team building event for our office\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Bloomington Cookies & Canvas kids party (2026-10-26): Indianapolis kids pricing",
+    ctx: {
+      ticket: {
+        id: 90903, subject: "Party Request from Kim Kiddo",
+        description: "Party Request from Wine & Canvas\n\nName: Kim Kiddo\nEmail: kim@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bloomington, IN\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Kim Kiddo", email: "kim@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Kim Kiddo\nEmail: kim@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Bloomington, IN\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Bloomington fundraiser (2026-10-26): Indianapolis fundraiser pricing",
+    ctx: {
+      ticket: {
+        id: 90904, subject: "Party Request from Fay Fundraiser",
+        description: "Party Request from Wine & Canvas\n\nName: Fay Fundraiser\nEmail: fay@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 30\nLocation: Bloomington, IN\nAdditional Info: Fundraiser for our school PTO\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Fay Fundraiser", email: "fay@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Fay Fundraiser\nEmail: fay@example.com\nPhone: 8125550199\nPreferred Date: 2026-12-12\nPreferred Time: 6:00 PM\nGuests: 30\nLocation: Bloomington, IN\nAdditional Info: Fundraiser for our school PTO\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1331,6 +1392,157 @@ async function main() {
   console.log(
     "Regression check passed: ordinary orders solve+close, first payment = Private Event Deposit (Pending), second = Final Balance (Pending), $0 stays Open."
   );
+
+  // --- Bloomington, IN (2026-10-26) ---
+  // Christopher: "New location to add for private event macros. Is the same
+  // pricing as Indianapolis. Please add Bloomington, Indiana for private
+  // party standard, corporate, Kids, and fundraiser." Plus its own venue kit.
+  //
+  // Bloomington was in out_of_scope_location until this change (the former
+  // Bloomington licensee's territory, 2026-10-01), and that rule sits above
+  // event_booking_question - so the FIRST thing each of these asserts is the
+  // matched rule. Put "bloomington, in" back in that rule and all four fail
+  // there, which is the whole point: the pricing below is unreachable while
+  // the exclusion stands.
+  const BLOOMINGTON_VENUE_KIT = "1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0";
+  const INDIANAPOLIS_VENUE_KIT = "1ljOmNUETCo9iB6Cya5NycSgwNK-fjfza";
+  for (const [ticketId, label, expectedPrices] of [
+    [90901, "Bloomington standard private party (2026-10-26): Indianapolis pricing, Bloomington venue kit", ["$39", "$35", "$30"]],
+    [90902, "Bloomington corporate private party (2026-10-26): Indianapolis corporate pricing", ["$44", "$40", "$35"]],
+    [90903, "Bloomington Cookies & Canvas kids party (2026-10-26): Indianapolis kids pricing", ["$29"]],
+    [90904, "Bloomington fundraiser (2026-10-26): Indianapolis fundraiser pricing", ["$39", "$34"]],
+  ] as Array<[number, string, string[]]>) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "event_booking_question") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}" instead of event_booking_question. ` +
+          `If that is out_of_scope_location, Bloomington is still excluded there and none of these quotes can ever ` +
+          `be sent - see the 2026-10-26 note in config/rules.yaml.`
+      );
+    }
+    // With PRIVATE_EVENT_QUOTES_LIVE off in this test environment the quote
+    // is held as an internal note rather than sent - same as the clarifier
+    // checks further down. The rendered quote body is identical either way,
+    // which is what the pricing and venue-kit assertions below read.
+    if (r.finalAction !== "posted_internal_note") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - expected finalAction "posted_internal_note" (this harness runs in draft ` +
+          `mode), got "${r.finalAction}".`
+      );
+    }
+    if (r.matchedLocation !== "Bloomington, IN") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - resolved to "${r.matchedLocation}" instead of "Bloomington, IN". ` +
+          `A bare "bloomington" keyword would also pull in Bloomington MN and IL, both larger cities - the ` +
+          `locations.yaml entry is state-qualified on purpose.`
+      );
+    }
+    const text = (bodiesByTicket.get(ticketId) ?? []).join("\n");
+    for (const price of expectedPrices) {
+      if (!text.includes(price)) {
+        throw new Error(
+          `ASSERTION FAILED: ${label} - the quote does not mention ${price}. Bloomington is Group A, the same as ` +
+            `Indianapolis: 39/35/30 standard, 44/40/35 corporate, $29 kids, $39 fundraiser retail keeping $34.`
+        );
+      }
+    }
+    // Group B prices would mean it was grouped with Orlando/Naples/Miami.
+    if (ticketId === 90901 && (text.includes("$45") || text.includes("$50"))) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote mentions a Group B rate ($45/$50). Bloomington is Group A.`
+      );
+    }
+    if (!text.includes(BLOOMINGTON_VENUE_KIT)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote does not link Bloomington's own venue kit. Christopher sent a ` +
+          `separate kit for this market; sharing Indianapolis's would send customers the wrong venue list.`
+      );
+    }
+    if (text.includes(INDIANAPOLIS_VENUE_KIT)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the quote links INDIANAPOLIS's venue kit. Same pricing does not mean the ` +
+          `same venues.`
+      );
+    }
+  }
+  // The location KEY, which is what becomes the private_event_location_*
+  // tag on the live send and is what the follow-up sweep reads at email 3 to
+  // pick the calendar link and promo pool. Asserted directly rather than off
+  // the ticket's tags, because the draft-mode path this harness runs does not
+  // apply the location tag.
+  {
+    const bloomResolver = new LocationResolver(path.join(CONFIG_DIR, "locations.yaml"));
+    const bloomingtonTowns = ["Bloomington, IN", "Bloomington Indiana", "Ellettsville", "Monroe County, IN"];
+    for (const town of bloomingtonTowns) {
+      const text = `Party Request from Wine & Canvas\n\nGuests: 20\nLocation: ${town}`;
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91300, description: text, requester_id: CUSTOMER_ID, subject: "Party Request from Wine & Canvas" },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      const loc = bloomResolver.resolve(c);
+      const key = loc ? resolvePrivateEventLocationKey(c, loc.slug) : null;
+      if (key !== "bloomington") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to location key ${JSON.stringify(key)} instead of "bloomington". ` +
+            `That key becomes the private_event_location_* tag the follow-up sweep reads at email 3.`
+        );
+      }
+    }
+    // Minnesota and Illinois Bloomington must NOT land here. Minneapolis and
+    // Rochester MN are excluded markets on this brand, so a bare
+    // "bloomington" keyword would quote Indiana prices for a city we do not
+    // serve at all.
+    for (const town of ["Bloomington, MN", "Bloomington Minnesota", "Bloomington, IL"]) {
+      const text = `Party Request from Wine & Canvas\n\nGuests: 20\nLocation: ${town}`;
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91301, description: text, requester_id: CUSTOMER_ID, subject: "Party Request from Wine & Canvas" },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      const loc = bloomResolver.resolve(c);
+      const key = loc ? resolvePrivateEventLocationKey(c, loc.slug) : null;
+      if (key === "bloomington") {
+        throw new Error(
+          `ASSERTION FAILED: "${town}" resolved to the Indiana "bloomington" key. The locations.yaml entry must ` +
+            `stay state-qualified - Bloomington MN and Bloomington IL are both larger than Bloomington IN.`
+        );
+      }
+    }
+    // Same rates as Indianapolis, read off both entries rather than restated.
+    const bloom = getLocationInfo("bloomington");
+    const indy = getLocationInfo("indianapolis");
+    if (JSON.stringify(bloom.pricing) !== JSON.stringify(indy.pricing)) {
+      throw new Error(
+        `ASSERTION FAILED: Bloomington's pricing has drifted from Indianapolis's. Christopher, 2026-10-26: "Is ` +
+          `the same pricing as Indianapolis." Bloomington: ${JSON.stringify(bloom.pricing)}; Indianapolis: ` +
+          `${JSON.stringify(indy.pricing)}.`
+      );
+    }
+    if (bloom.restaurantListUrl === indy.restaurantListUrl) {
+      throw new Error(
+        `ASSERTION FAILED: Bloomington and Indianapolis share a venue kit link. Same pricing, different venues - ` +
+          `Christopher sent a separate kit for Bloomington.`
+      );
+    }
+    if (bloom.travelFee) {
+      throw new Error(`ASSERTION FAILED: Bloomington has a travel fee set (${bloom.travelFee}); none was given.`);
+    }
+  }
+
+  // The calendar link email 3 and the below-minimum reply use. Read off the
+  // Bloomington subsite's own nav, not pattern-matched from Indianapolis.
+  if (PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.bloomington !== "https://wineandcanvas.com/bloomington/events/") {
+    throw new Error(
+      `ASSERTION FAILED: Bloomington's public calendar link is ` +
+        `${JSON.stringify(PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.bloomington)}, expected ` +
+        `https://wineandcanvas.com/bloomington/events/.`
+    );
+  }
+  console.log("Regression check passed: Bloomington, IN quotes at Indianapolis rates across all four categories, with its own venue kit and calendar link (2026-10-26).");
 
   // --- Regression check for the newsletter rule-ordering fix (2026-09-24) ---
   const newsLabel = "REGRESSION: Newsletter Sign Up naming an excluded city should still be filed and closed";

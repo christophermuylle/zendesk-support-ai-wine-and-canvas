@@ -96,6 +96,12 @@ const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPo
   "fort-lauderdale": "florida",
   miami: "florida",
   indianapolis: "indianapolis",
+  // Bloomington draws on the Indiana sheet ("Indianapolis $10 One Time
+  // Codes") - its codes carry the "in" suffix, so they are the Indiana pool
+  // rather than an Indianapolis-only one. FLAGGED to Christopher 2026-10-26:
+  // if those codes are restricted to the Indianapolis subsite in WooCommerce
+  // they will not redeem at Bloomington, and Bloomington needs its own sheet.
+  bloomington: "indianapolis",
   "grand-rapids": "michigan",
   cadillac: "michigan",
 };

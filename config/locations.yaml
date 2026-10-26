@@ -186,6 +186,35 @@ locations:
       "franklin, in", "franklin in", "lawrence, in", "lawrence in",
       "cumberland, in", "cumberland in"]
 
+  - slug: bloomington
+    display_name: "Bloomington, IN"
+    file: bloomington.md
+    # Added 2026-10-26 (Christopher: "New location to add for private event
+    # macros... Please add Bloomington, Indiana"). Same pricing as
+    # Indianapolis but its own market: its own venue kit, its own event
+    # calendar, and its own phone/inbox ((812) 345-1019 /
+    # infobloom@wineandcanvas.com), so it gets its own slug rather than
+    # keywords bolted onto indianapolis.
+    #
+    # NOTE: Bloomington and its surrounding towns were in
+    # out_of_scope_location until this change - they were the Bloomington
+    # licensee's territory (Christopher, 2026-10-01). Only Bloomington itself
+    # has been brought in scope. Bedford, French Lick, Martinsville and Terre
+    # Haute are deliberately still excluded there, because his 2026-10-26
+    # message named only the city. If the whole territory came over, those
+    # need removing from that rule too.
+    #
+    # STATE-QUALIFIED ONLY, and this one is not optional: Bloomington,
+    # Minnesota and Bloomington, Illinois are both larger than Bloomington,
+    # Indiana, and Minneapolis and Rochester MN are already excluded markets
+    # on this brand - a bare "bloomington" would pull Minnesota tickets into
+    # an Indiana quote. withStateAbbreviations turns "Bloomington Indiana"
+    # into "bloomington in", so both the comma and comma-less forms are
+    # needed. Ellettsville and Unionville are Monroe County and distinctive
+    # enough bare.
+    match_keywords: ["bloomington, in", "bloomington in", "ellettsville", "unionville, in",
+      "unionville in", "monroe county, in", "monroe county in"]
+
   - slug: grand-rapids
     display_name: "Grand Rapids, MI"
     file: grand-rapids.md

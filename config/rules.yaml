@@ -145,8 +145,23 @@ rules:
         - "columbus, oh"
         - "toledo, oh"
         - "south bend, in"
-        - "bloomington, in"
-        - "bloomington in"
+        # Bloomington itself was here until 2026-10-26, when Christopher added
+        # it as a private-event market with its own venue kit and
+        # Indianapolis pricing ("New location to add for private event
+        # macros... Please add Bloomington, Indiana"). It had to come out of
+        # this rule for that to have any effect at all: this rule sits above
+        # event_booking_question, so while Bloomington matched here its
+        # tickets never reached the quote system.
+        #
+        # ONLY the city was removed. Its surrounding towns below stay
+        # excluded, because his message named Bloomington and nothing else -
+        # if the whole former licensee territory came over, remove them too.
+        # Consequence worth knowing: non-private-event Bloomington tickets are
+        # now handled like Indianapolis's. Every rule below this one except
+        # the private_event_quote rules is no_action (tag, no reply), so in
+        # practice that means they get tagged for a human instead of tagged
+        # out-of-scope.
+        #
         # The rest of the Bloomington licensee's territory, separated out of
         # Christopher's Southside Indianapolis list on 2026-10-01. He put
         # Martinsville and Terre Haute here rather than with Southside.

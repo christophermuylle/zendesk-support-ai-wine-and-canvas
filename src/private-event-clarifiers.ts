@@ -25,12 +25,16 @@ import type { TicketContext } from "./types.js";
 export type ClarifierKind = "focus" | "location" | "both";
 
 // Only the cities this brand actually hosts private events in. Deliberately
-// excludes Lansing, Kalamazoo, Columbus, Toledo, South Bend, Bloomington,
-// Minneapolis, Rochester, Las Vegas and Henderson - those run their own
-// local support (see out_of_scope_location in config/rules.yaml).
+// excludes Lansing, Kalamazoo, Columbus, Toledo, South Bend, Minneapolis,
+// Rochester, Las Vegas and Henderson - those run their own local support
+// (see out_of_scope_location in config/rules.yaml).
+//
+// Bloomington moved OFF that list on 2026-10-26, when Christopher added it
+// as a private-event market with its own venue kit and Indianapolis pricing.
 const SERVED_CITIES = [
   "Indianapolis, IN",
   "Greenwood, IN",
+  "Bloomington, IN",
   "Grand Rapids, MI",
   "Fort Myers, FL",
   "Cape Coral, FL",
