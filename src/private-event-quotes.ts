@@ -596,7 +596,11 @@ const RESTAURANT_LIST_BLOOMINGTON = "https://drive.google.com/file/d/1PVGbphfP5t
 const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-/view?usp=sharing";
 const RESTAURANT_LIST_ORLANDO = "https://drive.google.com/file/d/1zCNFqOIM1xmzI3f5c_3aRcjgsg9Cxywt/view?usp=sharing";
 const RESTAURANT_LIST_FORT_LAUDERDALE = "https://drive.google.com/file/d/1bY8pEwUCLddKcq2mpAtwYNFbea2J4mWJ/view?usp=sharing";
-const RESTAURANT_LIST_FORT_MYERS = "https://drive.google.com/file/d/12OquEzEeWsrrioNKCxpxE517ZhsMlCl1/view?usp=sharing";
+// Updated 2026-10-26 (Christopher: "Please update the fort myers restaurant
+// list link for private event quotes on wine and canvas"). Fort Myers /
+// Cape Coral only - the Naples side of this slug uses
+// RESTAURANT_LIST_NAPLES_MIAMI and is untouched.
+const RESTAURANT_LIST_FORT_MYERS = "https://drive.google.com/file/d/1Zd4is57xRSrf-YJQ2qEviHSX7WXRidMU/view?usp=sharing";
 const RESTAURANT_LIST_GRAND_RAPIDS = "https://drive.google.com/file/d/1_tpH4iq8jeYF07RXhH-FjC7BhPl5SOtZ/view?usp=sharing";
 const RESTAURANT_LIST_NAPLES_MIAMI = "https://drive.google.com/file/d/1o84eo8n8kaQHyf2yzH7Zkec3cSrwf3jp/view?usp=sharing";
 const CADILLAC_VENUE_LIST = "https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing";
