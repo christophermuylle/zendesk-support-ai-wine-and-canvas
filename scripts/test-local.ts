@@ -22,6 +22,7 @@ import {
   resolvePrivateEventLocationKey,
   getLocationInfo,
   classifyPrivateEvent,
+  mentionsNonprofitStatus,
   PRIVATE_EVENT_LOCATION_CALENDAR_LINKS,
 } from "../src/private-event-quotes.js";
 import type { ActionType, DraftResult, RuleDecision, TicketContext, ZendeskComment } from "../src/types.js";
@@ -1259,6 +1260,98 @@ async function main() {
     for (const [text, why] of misfires) {
       const got = classify(text);
       if (got !== null) throw new Error(`ASSERTION FAILED (${why}): "${text}" classified as "${got}", expected no category. A keyword matched inside a longer word.`);
+    }
+
+    // --- "non-profit" is not an event type (2026-10-28) ---
+    // Found on the other brand, Painting and Vino #82266: "I'm hosting an
+    // employee party ... Can you share pricing and if you have non-profit
+    // rates?" got the fundraiser quote - donation mechanics for a staff
+    // Christmas party. "employee" is a CORPORATE keyword, but fundraiser is
+    // checked first, so "non-profit" won. This brand had the identical
+    // keyword list and ordering, so it was one inquiry away from the same
+    // mistake; these cases are that brand's real wording.
+    const nonprofitNotFundraiser: Array<[string, string, string]> = [
+      [
+        "Tell us about your Event: I'm hosting an employee party. We have several activities and I'd like to add a simple paint event. Can you share pricing and if you have non-profit rates?",
+        "corporate",
+        "PV #82266 - an employee party at a nonprofit is a CORPORATE event",
+      ],
+      [
+        "Tell us about your Event: We are a non-profit family services organization wanting to book a painting activity for a staff retreat. We have a tax-exempt certificate.",
+        "corporate",
+        "PV #77541 - a staff retreat at a nonprofit is a CORPORATE event",
+      ],
+    ];
+    for (const [text, want, why] of nonprofitNotFundraiser) {
+      const got = classify(text);
+      if (got !== want) {
+        throw new Error(
+          `ASSERTION FAILED (${why}): classified as "${got}", expected "${want}". Being a nonprofit is who the ` +
+            `customer IS, not what the event is - it must not decide the category.`
+        );
+      }
+    }
+    {
+      const text =
+        "Tell us about your Event: RETA-RSES is a non-profit association and we are hosting our annual conference. We are looking for a group paint instructor to teach a class of about 60 people.";
+      if (classify(text) === "fundraiser") {
+        throw new Error(
+          `ASSERTION FAILED (PV #80826): a nonprofit booking its annual conference was classified as a fundraiser.`
+        );
+      }
+    }
+    const stillFundraiser: Array<[string, string]> = [
+      [
+        "Tell us about your Event: We are a non-profit religious organization and as part of a fund raising project we wanted to explore bringing this experience to our membership.",
+        "PV #70000 - 'fund raising' as two words was the ONLY fundraiser signal in this ticket",
+      ],
+      [
+        "Tell us about your Event: we are a nonprofit hosting a fundraiser for the shelter",
+        "a nonprofit that says 'fundraiser' is still a fundraiser",
+      ],
+      [
+        "Tell us about your Event: our non-profit is holding a charity auction night",
+        "'charity' still decides on its own",
+      ],
+    ];
+    for (const [text, why] of stillFundraiser) {
+      const got = classify(text);
+      if (got !== "fundraiser") {
+        throw new Error(
+          `ASSERTION FAILED (${why}): classified as "${got}", expected "fundraiser". Demoting "non-profit" must ` +
+            `not stop genuine fundraisers being caught.`
+        );
+      }
+    }
+    for (const text of [
+      "Tell us about your Event: employee party, do you have non-profit rates?",
+      "Tell us about your Event: staff retreat, we have a tax-exempt certificate",
+      "Tell us about your Event: we are a 501c3",
+    ]) {
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91303, description: text, requester_id: CUSTOMER_ID },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      if (!mentionsNonprofitStatus(c)) {
+        throw new Error(
+          `ASSERTION FAILED: mentionsNonprofitStatus missed ${JSON.stringify(text)}. These customers ask about ` +
+            `nonprofit rates and tax exemption, which no quote template answers - they need a human.`
+        );
+      }
+    }
+    {
+      const text = "Tell us about your Event: a birthday party for my wife";
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91304, description: text, requester_id: CUSTOMER_ID },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      if (mentionsNonprofitStatus(c)) {
+        throw new Error(`ASSERTION FAILED: mentionsNonprofitStatus fired on an ordinary birthday inquiry.`);
+      }
     }
     // Whole-token matching means inflections must be listed explicitly. If one
     // is dropped from the keyword lists, this is what catches it.

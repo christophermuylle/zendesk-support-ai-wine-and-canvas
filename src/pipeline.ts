@@ -52,6 +52,7 @@ import {
   isLeadBrosInquiry,
   PRIVATE_EVENT_LOCATION_CALENDAR_LINKS,
   getFirstName,
+  mentionsNonprofitStatus,
 } from "./private-event-quotes.js";
 import { renderClarifier, type ClarifierKind } from "./private-event-clarifiers.js";
 
@@ -707,6 +708,13 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
         PRIVATE_EVENT_QUOTE_SENT_TAG,
         `${PRIVATE_EVENT_QUOTE_SENT_TAG}_${category}`,
         `${PRIVATE_EVENT_LOCATION_TAG_PREFIX}${locationKey}`,
+        // A nonprofit customer gets the right quote for their event type -
+        // being a nonprofit no longer drags them into the fundraiser
+        // template (see mentionsNonprofitStatus) - but they almost always
+        // ask something no template answers: "do you have non-profit
+        // rates?", "we have a tax-exempt certificate". So the quote still
+        // sends, and a human still gets pulled in to answer that part.
+        ...(mentionsNonprofitStatus(ctx) ? ["needs_human", "private_event_nonprofit_customer"] : []),
       ],
     });
     return { ticketId, ruleDecision, matchedLocation: location!.displayName, finalAction: "posted_public_reply", mode: deps.mode };
