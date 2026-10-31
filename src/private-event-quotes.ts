@@ -683,14 +683,17 @@ const RESTAURANT_LIST_BLOOMINGTON = "https://drive.google.com/file/d/1PVGbphfP5t
 // same pricing as Tampa but send this SARASOTA RESTAURANT LIST LINK". Its own
 // kit, not a share of Tampa's.
 const RESTAURANT_LIST_SARASOTA = "https://drive.google.com/file/d/16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw/view?usp=sharing";
-const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-/view?usp=sharing";
+// Updated 2026-10-31 (Christopher: "Please update the Fort Myers and Tampa
+// restaurant kit links"). Tampa / St. Pete / Clearwater only - Sarasota has
+// its own kit and is untouched.
+const RESTAURANT_LIST_TAMPA = "https://drive.google.com/file/d/1T6rVMlP1MqaRshYkE9Dl5e7Q_njTM57A/view?usp=sharing";
 const RESTAURANT_LIST_ORLANDO = "https://drive.google.com/file/d/1zCNFqOIM1xmzI3f5c_3aRcjgsg9Cxywt/view?usp=sharing";
 const RESTAURANT_LIST_FORT_LAUDERDALE = "https://drive.google.com/file/d/1bY8pEwUCLddKcq2mpAtwYNFbea2J4mWJ/view?usp=sharing";
-// Updated 2026-10-26 (Christopher: "Please update the fort myers restaurant
-// list link for private event quotes on wine and canvas"). Fort Myers /
-// Cape Coral only - the Naples side of this slug uses
+// Updated 2026-10-31, superseding the 2026-10-26 link (Christopher: "Please
+// update the Fort Myers and Tampa restaurant kit links"). Fort Myers / Cape
+// Coral only - the Naples side of this slug uses
 // RESTAURANT_LIST_NAPLES_MIAMI and is untouched.
-const RESTAURANT_LIST_FORT_MYERS = "https://drive.google.com/file/d/1Zd4is57xRSrf-YJQ2qEviHSX7WXRidMU/view?usp=sharing";
+const RESTAURANT_LIST_FORT_MYERS = "https://drive.google.com/file/d/1FzlLhp188Zgv6r9tX9jlJ37gVyZb_6IK/view?usp=sharing";
 const RESTAURANT_LIST_GRAND_RAPIDS = "https://drive.google.com/file/d/1_tpH4iq8jeYF07RXhH-FjC7BhPl5SOtZ/view?usp=sharing";
 const RESTAURANT_LIST_NAPLES_MIAMI = "https://drive.google.com/file/d/1o84eo8n8kaQHyf2yzH7Zkec3cSrwf3jp/view?usp=sharing";
 const CADILLAC_VENUE_LIST = "https://docs.google.com/document/d/1wsJfW_gH5Vz2CF7XDC4Y70wQh8MRAayLh5xcIcT_NHY/edit?usp=sharing";

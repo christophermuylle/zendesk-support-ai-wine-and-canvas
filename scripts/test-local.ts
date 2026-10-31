@@ -1701,7 +1701,11 @@ async function main() {
   // private events the same pricing as Tampa but send this SARASOTA
   // RESTAURANT LIST LINK."
   const SARASOTA_VENUE_KIT = "16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw";
-  const TAMPA_VENUE_KIT = "1gTEOFxbdbvKhMtKhfOPo_-ZxgfAO_A9-";
+  // Kept in step with RESTAURANT_LIST_TAMPA in src/private-event-quotes.ts -
+  // updated 2026-10-31 with the link itself. A stale id here would make the
+  // "Sarasota must not link Tampa's kit" check below pass vacuously, since it
+  // would be testing against a kit no market uses any more.
+  const TAMPA_VENUE_KIT = "1T6rVMlP1MqaRshYkE9Dl5e7Q_njTM57A";
   for (const [ticketId, label, expectedPrices] of [
     [91001, "Sarasota standard private party (2026-10-26): Tampa pricing, Sarasota venue kit", ["$39", "$35", "$30"]],
     [91002, "Sarasota corporate private party (2026-10-26): Tampa corporate pricing", ["$44", "$40", "$35"]],
