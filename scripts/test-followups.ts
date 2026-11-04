@@ -14,7 +14,7 @@
 // Usage: npm run test:followups
 
 import { runFollowUpSweep } from "../src/followups.js";
-import { FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG, FOLLOW_UP_3_SENT_TAG } from "../src/config.js";
+import { FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG, FOLLOW_UP_3_SENT_TAG, PRIVATE_EVENT_AGENT_WORKING_TAG } from "../src/config.js";
 import type { IZendeskClient } from "../src/zendesk.js";
 import type { ActionType, TicketContext, ZendeskComment, ZendeskTicket } from "../src/types.js";
 
@@ -25,8 +25,14 @@ function hoursAgo(h: number): string {
   return new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
 }
 
-function comment(body: string, authorId: number, hoursAgoVal: number, isPublic = true): ZendeskComment {
-  return { id: Math.floor(Math.random() * 1e6), author_id: authorId, body, public: isPublic, created_at: hoursAgo(hoursAgoVal) };
+function comment(body: string, authorId: number, hoursAgoVal: number, isPublic = true, via?: string): ZendeskComment {
+  return {
+    id: Math.floor(Math.random() * 1e6), author_id: authorId, body, public: isPublic,
+    created_at: hoursAgo(hoursAgoVal),
+    // Default "api": an untagged fixture must look automated, never human,
+    // or a test could silently disable the sweep it is meant to exercise.
+    via: { channel: via ?? "api" },
+  };
 }
 
 interface StoredTicket {
@@ -329,6 +335,58 @@ async function main() {
       "the Indianapolis control must not send here either (no network in this harness)"
     );
     console.log("Assertion passed: Bloomington stage 3 tags for a human instead of sending another market's promo code.");
+  }
+
+  // --- A human reply since the quote stops the sequence (PV #82383, 2026-11-04) ---
+  // The incident was on the other brand, but this is the same sweep: a quote
+  // auto-sent, Raimey replied by hand twelve minutes later, and twenty-four
+  // hours after the QUOTE the customer was emailed "just wanted to make sure
+  // it reached you" while waiting on a date a human had promised her.
+  {
+    const s2 = new Map<number, StoredTicket>();
+
+    const a = makeTicket(8201, 30, ["private_event_quote_sent_corporate"], "Human Answered");
+    a.comments.push(comment("Hi, I'm checking artist availability for Friday.", AGENT_ID, 29, true, "web"));
+    s2.set(8201, a);
+
+    const b = makeTicket(8202, 30, ["private_event_quote_sent_corporate"], "Control");
+    s2.set(8202, b);
+
+    const c = makeTicket(8203, 30, ["private_event_quote_sent_corporate"], "Earlier Human");
+    // Spliced AFTER the customer's opening message: a ticket whose FIRST
+    // comment is ours trips the outbound-thread guard instead, which would
+    // pass this test for the wrong reason.
+    c.comments.splice(1, 0, comment("Happy to help - what's the occasion?", AGENT_ID, 30.5, true, "web"));
+    s2.set(8203, c);
+
+    const d = makeTicket(8204, 30, ["private_event_quote_sent_corporate", PRIVATE_EVENT_AGENT_WORKING_TAG], "Hands Off");
+    s2.set(8204, d);
+
+    // No via field at all - must count as automated. If a missing field read
+    // as human the sequence would quietly stop for every ticket on the brand.
+    const e = makeTicket(8205, 30, ["private_event_quote_sent_corporate"], "No Via Field");
+    e.comments = e.comments.map((x) => {
+      const { via: _d, ...rest } = x;
+      return rest as ZendeskComment;
+    });
+    s2.set(8205, e);
+
+    const r2 = await runFollowUpSweep({ zendesk: new InMemoryZendesk(s2) });
+    const sent2 = (id: number) => r2.sent.filter((x) => x.ticketId === id).map((x) => x.stage);
+
+    assert(sent2(8201).length === 0,
+      "#82383 regression: a ticket a human answered after the quote must get NO follow-up");
+    assert(!s2.get(8201)!.ticket.tags.includes(FOLLOW_UP_1_SENT_TAG),
+      "#82383 regression: the skipped ticket must not be marked as having had follow-up 1 sent - the sequence has to resume if the human conversation goes quiet");
+    assert(sent2(8202).length === 1 && sent2(8202)[0] === 1,
+      "control: a quote with only our own automated messages after it must STILL get follow-up 1");
+    assert(sent2(8203).length === 1 && sent2(8203)[0] === 1,
+      "control: a human reply BEFORE the quote must not block the sequence");
+    assert(sent2(8204).length === 0,
+      `a ticket tagged ${PRIVATE_EVENT_AGENT_WORKING_TAG} must get nothing`);
+    assert(sent2(8205).length === 1 && sent2(8205)[0] === 1,
+      "a comment with no via field must be treated as AUTOMATED");
+    console.log("Assertion passed: a human reply after the quote, or the agent-working tag, stops the follow-up sequence (#82383).");
   }
 
   console.log("\nAll assertions passed.");

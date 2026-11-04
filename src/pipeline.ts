@@ -26,6 +26,7 @@ import {
   PRIVATE_EVENT_INTERNAL_SENDER_ADDRESSES,
   PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG,
   OUTBOUND_THREAD_TAG,
+  PRIVATE_EVENT_AGENT_WORKING_TAG,
   PRIVATE_EVENT_BELOW_MINIMUM_TAG,
 } from "./config.js";
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
@@ -341,6 +342,19 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
   // (order_confirmation, newsletter_signup, paypal_receipt and friends):
   // those file an automated notification rather than answer a person, and
   // must still run whoever commented last.
+  // A human has claimed this ticket and wants the automation out of it. Sits
+  // with the other conversational guards - deliberately AFTER the mechanical
+  // branches above, so an order confirmation or newsletter signup still files
+  // normally even if someone tagged the ticket.
+  //
+  // This exists so nobody has to clear tags to get the same effect: on
+  // Painting and Vino #82383 that habit produced the opposite result, because
+  // the cleared tags were the guards. See PRIVATE_EVENT_AGENT_WORKING_TAG in
+  // config.ts.
+  if (ctx.ticket.tags.includes(PRIVATE_EVENT_AGENT_WORKING_TAG)) {
+    return { ticketId, ruleDecision, matchedLocation: null, finalAction: "no_op", mode: deps.mode };
+  }
+
   const newestCommentOnTicket = ctx.comments[ctx.comments.length - 1];
   if (newestCommentOnTicket && newestCommentOnTicket.author_id !== ctx.ticket.requester_id) {
     return {

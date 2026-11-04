@@ -44,6 +44,7 @@ import {
   FOLLOW_UP_1_SENT_TAG,
   FOLLOW_UP_2_SENT_TAG,
   FOLLOW_UP_3_SENT_TAG,
+  PRIVATE_EVENT_AGENT_WORKING_TAG,
 } from "./config.js";
 import type { PrivateEventCategory, PrivateEventLocationKey } from "./private-event-quotes.js";
 import { getFirstName, getLocationInfo, PRIVATE_EVENT_LOCATION_CALENDAR_LINKS } from "./private-event-quotes.js";
@@ -186,6 +187,10 @@ async function processCandidate(
   // too; this re-check covers a human editing tags between search and fetch.
   if (tags.includes(PRIVATE_EVENT_REPLY_AFTER_QUOTE_TAG)) return { outcome: "skipped_not_eligible" };
 
+  // A human has claimed this ticket. See PRIVATE_EVENT_AGENT_WORKING_TAG in
+  // config.ts - one tag to add instead of a list to clear.
+  if (tags.includes(PRIVATE_EVENT_AGENT_WORKING_TAG)) return { outcome: "skipped_not_eligible" };
+
   // Never follow up on a thread WE started - see the same guard in
   // pipeline.ts. WC #30265: an internal "are you available?" email to the
   // Orlando licensee carried private_event_quote_sent (stacked macros) and
@@ -221,6 +226,39 @@ async function processCandidate(
     tags.includes(t)
   ).length;
   const quoteComment = outbound[outbound.length - 1 - stagesAlreadySent] ?? outbound[0];
+
+  // A PERSON has already answered since our last automated message, so there
+  // is nothing to nudge about - they are mid-conversation with the customer.
+  //
+  // Painting and Vino #82383 (Toni Hoyt / AMP30), 2026-11-04. The quote
+  // auto-sent at 17:27:58 on 11-02; Raimey replied by hand twelve minutes
+  // later saying she was checking artist availability for the 13th. Twenty-
+  // four hours after the QUOTE, that brand's sweep emailed Toni "I wanted to
+  // follow up on the painting party quote I sent yesterday... just wanted to
+  // make sure it reached you" - while she was waiting on a date from a human
+  // who had already written to her. Same code here, same exposure.
+  //
+  // REPLY_AFTER_QUOTE_TAG does not cover this: it marks that the CUSTOMER
+  // replied, and there the customer had said nothing yet - we had. Status
+  // does not cover it either, because an agent reply puts the ticket back to
+  // pending, which is precisely the state this sweep looks for.
+  //
+  // Compared against our last AUTOMATED message rather than against
+  // quoteComment, deliberately. The anchor above counts backwards from the
+  // end of the outbound list, so a human reply drags the anchor onto the
+  // human's own message - comparing to it would always be false.
+  //
+  // via.channel is the only way to tell a person's message from our own,
+  // because this brand posts everything through one shared agent account:
+  // "web" is someone typing in the agent interface, "api" is this service. A
+  // comment with no via counts as automated, so a fixture or a missing field
+  // cannot silently switch the sweep off.
+  const at = (c: { created_at: string }) => new Date(c.created_at).getTime();
+  const lastAutomated = outbound.filter((c) => c.via?.channel !== "web").pop();
+  const lastHuman = outbound.filter((c) => c.via?.channel === "web").pop();
+  if (lastHuman && (!lastAutomated || at(lastHuman) > at(lastAutomated))) {
+    return { outcome: "skipped_not_eligible" };
+  }
 
   const threshold = stage === 1 ? HOURS_STAGE_1 : stage === 2 ? HOURS_STAGE_2 : HOURS_STAGE_3;
   if (hoursSince(quoteComment.created_at) < threshold) return { outcome: "skipped_not_due" };

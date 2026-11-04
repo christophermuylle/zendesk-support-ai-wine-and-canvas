@@ -7,6 +7,16 @@ export interface ZendeskComment {
   html_body?: string;
   public: boolean;
   created_at: string;
+  /**
+   * How the comment was created. Zendesk has always returned this on the
+   * comments endpoint; it simply was not declared here until 2026-11-04.
+   * The only values that matter to us are "api" (posted by this service)
+   * and "web" (typed by a person in the agent interface) - which is the
+   * ONLY way to tell our own automated messages from Raimey's and Bonnie's,
+   * since both brands post everything through a single shared agent
+   * account. Optional because nothing guarantees it on a test fixture.
+   */
+  via?: { channel?: string };
 }
 
 export interface ZendeskTicket {

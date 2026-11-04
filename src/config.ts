@@ -156,6 +156,28 @@ export const PRIVATE_EVENT_CLARIFICATION_SENT_TAG = "private_event_clarification
 // confirmed against the live field's option list ("Private Events") and
 // against ticket #29001, where it was set by hand.
 export const PRIVATE_EVENT_FIELD_VALUE = process.env.PRIVATE_EVENT_FIELD_VALUE ?? "private_events";
+/**
+ * "A human is working this ticket - automation, hands off."
+ *
+ * Raimey, 2026-11-04, on Painting and Vino #82383: "I've gotten into the
+ * habit of clearing the tags on tickets I'm actively working so the
+ * automations don't pick them up, but that's easy to miss."
+ *
+ * Clearing the tags is the worst way to achieve that, because the tags ARE
+ * the guards: private_event_quote_sent is what turns a later customer reply
+ * into an internal note instead of a second quote, and
+ * private_event_clarification_sent is what stops the intake questions being
+ * asked twice. On that ticket the tags were cleared three times from the
+ * agent interface, and each clear was followed by exactly the canned email it
+ * was meant to prevent.
+ *
+ * So: one tag to ADD that silences everything, instead of a list to remove.
+ * Checked by both the pipeline and the follow-up sweep. Added to this brand
+ * at the same time even though the incident was on the other one - the code
+ * and the habit are shared.
+ */
+export const PRIVATE_EVENT_AGENT_WORKING_TAG = "private_event_agent_working";
+
 export const PRIVATE_EVENT_LOCATION_TAG_PREFIX = "private_event_location_";
 export const FOLLOW_UP_1_SENT_TAG = "private_event_followup_1_sent";
 export const FOLLOW_UP_2_SENT_TAG = "private_event_followup_2_sent";

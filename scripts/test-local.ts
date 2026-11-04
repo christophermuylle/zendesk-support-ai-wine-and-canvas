@@ -1171,6 +1171,31 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  {
+    // PV #82383 (Toni Hoyt / AMP30): the automation kept answering over
+    // Raimey while she worked a booking by hand, and her workaround - clearing
+    // the guard tags - caused the very emails she was trying to stop. This tag
+    // is the replacement. Same code on this brand, so same test.
+    label: "REGRESSION (#82383): a ticket tagged private_event_agent_working gets no automated reply",
+    ctx: {
+      ticket: {
+        id: 8238, subject: "Party Request from Wine & Canvas",
+        description: "Party Request from Wine & Canvas\n\nName: Dana Working\nEmail: dana@example.com\nGuests: 20\nLocation: Indianapolis, IN\nAdditional Info: corporate holiday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "open", requester_id: CUSTOMER_ID,
+        tags: ["booking_question", "private_event_agent_working"],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Dana Working", email: "dana@example.com" },
+      comments: [
+        makeComment("Party Request from Wine & Canvas\n\nName: Dana Working\nEmail: dana@example.com\nGuests: 20\nLocation: Indianapolis, IN\nAdditional Info: corporate holiday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID),
+        makeComment("Hi Dana, I'm checking artist availability now.", 999),
+        // Carries private-event wording on purpose: without the tag this
+        // ticket WOULD be answered, which is what makes the test meaningful.
+        makeComment("Just checking in on our corporate holiday party quote for 20 guests in Indianapolis - any word on availability?", CUSTOMER_ID),
+      ],
+      brand: "wine_and_canvas",
+    },
+  },
 ];
 
 async function main() {
@@ -1695,6 +1720,24 @@ async function main() {
     }
   }
   console.log("Regression check passed: Grand Rapids and Cadillac send no kit link, just the artist-availability line; markets with a kit keep theirs (2026-10-26).");
+
+  // --- The agent-working tag (#82383, 2026-11-04) ---
+  {
+    const label = "REGRESSION (#82383): a ticket tagged private_event_agent_working gets no automated reply";
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.finalAction !== "no_op") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - produced "${r.finalAction}". A ticket a human has claimed must get nothing.`
+      );
+    }
+    if (commentedTicketIds.includes(8238)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - a comment was posted. Not even an internal note: the point of the tag is ` +
+          `that the automation is silent.`
+      );
+    }
+  }
 
   // --- Sarasota, FL (2026-10-26) ---
   // Christopher: "Adding Sarasota to our territories now. Please quote
