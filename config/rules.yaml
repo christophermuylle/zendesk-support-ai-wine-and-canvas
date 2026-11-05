@@ -243,9 +243,42 @@ rules:
     force_human_review: false
     add_tags: ["out_of_scope_location"]
 
+  # "Cancellation" alone used to be in this list and it cost bookings.
+  #
+  # PV #82477 (2026-11-05): Muskan Aggarwal at Meta sent a full private-event
+  # inquiry - 10 guests, Barebottle Menlo Park, Thu Nov 12 - that ended with
+  # "What are the cancellation terms?". This rule sits above
+  # event_booking_question, so the word "cancellation" claimed it: filed as a
+  # REFUND REQUEST, no quote, no reply, and the Reason field set to Refund
+  # Request. She had also emailed the same questions separately (#82476), and
+  # that one was filed the same way. A $550 corporate booking sat untouched.
+  #
+  # Asking what the cancellation policy IS is the opposite of cancelling.
+  # Checked against every ticket containing "cancel" since 2026-08-01 (64 of
+  # them) before changing this:
+  #   - 30 match both the old list and this one - no change.
+  #   - 3 were policy QUESTIONS inside live private-event inquiries (#82477,
+  #     #81692, #80559). All three matched on nothing but the bare word
+  #     "cancellation"; none match this list.
+  #   - 2 are lost, both the eesel SaaS vendor mailing us about OUR account
+  #     ("would like to cancel their eesel account") - not customer
+  #     cancellations, and better off not tagged refund_request.
+  #   - 10 are GAINED: real cancellations this rule misses today, because
+  #     people write "we had to cancel tonight's event" (#82180, #81928,
+  #     #80563, #80550, #80549, #80312), "can you please cancel it for 2"
+  #     (#81067), "can we cancel our class for tomorrow?" (#80239), "I will
+  #     need to cancel public events" (#80584), "the venue had us cancel this
+  #     event" (#81851) - and none of those say "cancel my".
+  #
+  # "to cancel" was tried and rejected: it catches a WP Fusion marketing mail
+  # ("if you wish to cancel your subscription") and someone saying "I don't
+  # necessarily want to cancel", which is the opposite of a cancellation.
   - name: refund_or_cancellation_request
     match:
-      any_keywords: ["refund", "cancel my", "cancellation", "money back", "chargeback"]
+      any_keywords: ["refund", "money back", "chargeback",
+        "cancel my", "cancel our", "cancel the", "cancel it", "cancel this", "cancel that",
+        "need to cancel", "have to cancel", "had to cancel", "please cancel",
+        "cancelling", "canceling", "cancelled my", "canceled my"]
     action: no_action
     force_human_review: false
     add_tags: ["needs_human", "refund_request"]

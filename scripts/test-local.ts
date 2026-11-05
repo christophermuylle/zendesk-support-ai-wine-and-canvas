@@ -1721,6 +1721,50 @@ async function main() {
   }
   console.log("Regression check passed: Grand Rapids and Cadillac send no kit link, just the artist-availability line; markets with a kit keep theirs (2026-10-26).");
 
+  // --- "cancellation terms" is a question, not a cancellation (PV #82477) ---
+  // On the other brand, a complete private-event inquiry from Meta ending
+  // "What are the cancellation terms?" was filed as a REFUND REQUEST - no
+  // quote, no reply - because this rule sits above event_booking_question and
+  // the bare word "cancellation" claimed it. Same rule, same ordering here.
+  {
+    const ruleFor = (text: string): string => {
+      const c: TicketContext = {
+        ticket: { ...scenarios[0].ctx.ticket, id: 91500, subject: "Party Request from Wine & Canvas", description: text, requester_id: CUSTOMER_ID },
+        requester: { id: CUSTOMER_ID, name: "T", email: "t@example.com" },
+        comments: [makeComment(text, CUSTOMER_ID)],
+        brand: "wine_and_canvas",
+      };
+      return rules.evaluate(c).matchedRule;
+    };
+    for (const text of [
+      "Party Request from Wine & Canvas. Guests: 10. Location: Indianapolis, IN. Please confirm per-person price, deposit amount, cancellation terms, and what is included.",
+      "Could you please share an overview of your booking process, cancellation policy, and any other key terms?",
+    ]) {
+      if (ruleFor(text) === "refund_or_cancellation_request") {
+        throw new Error(
+          `ASSERTION FAILED (PV #82477 shape): ${JSON.stringify(text.slice(0, 60))} was filed as a refund ` +
+            `request. Asking what the policy IS is the opposite of cancelling.`
+        );
+      }
+    }
+    const realCancellations: Array<[string, string]> = [
+      ["I need a refund for last night's class", "refund (unchanged)"],
+      ["I want to cancel my event on the 14th", "cancel my (unchanged)"],
+      ["Is there anyway we can cancel our class for tomorrow? Something came up", "was MISSED before"],
+      ["Can you please cancel it for 2 of our guests", "was MISSED before"],
+      ["Hi, we had to cancel tonight's event but the contact wants to rebook", "was MISSED before"],
+    ];
+    for (const [text, why] of realCancellations) {
+      if (ruleFor(text) !== "refund_or_cancellation_request") {
+        throw new Error(
+          `ASSERTION FAILED (${why}): ${JSON.stringify(text.slice(0, 55))} matched "${ruleFor(text)}" ` +
+            `instead of refund_or_cancellation_request.`
+        );
+      }
+    }
+    console.log("Regression check passed: cancellation POLICY questions stay private-event inquiries, and real cancellations - including phrasings the old keywords missed - are still caught (PV #82477).");
+  }
+
   // --- The agent-working tag (#82383, 2026-11-04) ---
   {
     const label = "REGRESSION (#82383): a ticket tagged private_event_agent_working gets no automated reply";
