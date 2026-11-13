@@ -1697,7 +1697,7 @@ async function main() {
   // only, and the null branch is shared by all three templates.
   for (const [ticketId, label, kit] of [
     [91001, "Sarasota standard private party (2026-10-26): Tampa pricing, Sarasota venue kit", "16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw"],
-    [90901, "Bloomington standard private party (2026-10-26): Indianapolis pricing, Bloomington venue kit", "1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0"],
+    [90901, "Bloomington standard private party (2026-10-26): Indianapolis pricing, Bloomington venue kit", "1vQL2EjtHe3sBXuZCC4LF5mSso5BfvcfC"],
   ] as Array<[number, string, string]>) {
     const text = (bodiesByTicket.get(ticketId) ?? []).join("\n");
     if (!text.includes(kit)) {
@@ -1987,7 +1987,7 @@ async function main() {
   // matched rule. Put "bloomington, in" back in that rule and all four fail
   // there, which is the whole point: the pricing below is unreachable while
   // the exclusion stands.
-  const BLOOMINGTON_VENUE_KIT = "1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0";
+  const BLOOMINGTON_VENUE_KIT = "1vQL2EjtHe3sBXuZCC4LF5mSso5BfvcfC";
   const INDIANAPOLIS_VENUE_KIT = "1ljOmNUETCo9iB6Cya5NycSgwNK-fjfza";
   for (const [ticketId, label, expectedPrices] of [
     [90901, "Bloomington standard private party (2026-10-26): Indianapolis pricing, Bloomington venue kit", ["$39", "$35", "$30"]],
@@ -2265,13 +2265,26 @@ async function main() {
     }
   }
 
-  // The calendar link email 3 and the below-minimum reply use. Read off the
-  // Bloomington subsite's own nav, not pattern-matched from Indianapolis.
-  if (PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.bloomington !== "https://wineandcanvas.com/bloomington/events/") {
+  // The calendar link email 3 and the below-minimum reply use. Updated
+  // 2026-11-13 when the Indiana markets were consolidated onto one /indiana/
+  // subsite (Christopher: "there is no more bloomington page. It's now
+  // re-directed to Indiana"). /indiana/bloomington/ IS the Bloomington event
+  // calendar there - the city page and the calendar are the same page now.
+  if (PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.bloomington !== "https://wineandcanvas.com/indiana/bloomington/") {
     throw new Error(
       `ASSERTION FAILED: Bloomington's public calendar link is ` +
         `${JSON.stringify(PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.bloomington)}, expected ` +
-        `https://wineandcanvas.com/bloomington/events/.`
+        `https://wineandcanvas.com/indiana/bloomington/.`
+    );
+  }
+  // Same restructure: the old /indianapolis/events/ URL now redirects to
+  // /indiana/indianapolis/. Pinned so a future edit cannot quietly put the
+  // quote back on a redirect.
+  if (PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.indianapolis !== "https://wineandcanvas.com/indiana/indianapolis/") {
+    throw new Error(
+      `ASSERTION FAILED: Indianapolis's public calendar link is ` +
+        `${JSON.stringify(PRIVATE_EVENT_LOCATION_CALENDAR_LINKS.indianapolis)}, expected ` +
+        `https://wineandcanvas.com/indiana/indianapolis/.`
     );
   }
   console.log("Regression check passed: Bloomington, IN quotes at Indianapolis rates across all four categories, with its own venue kit and calendar link (2026-10-26).");

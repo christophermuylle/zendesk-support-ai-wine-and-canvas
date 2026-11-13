@@ -224,9 +224,10 @@ locations:
     # Added 2026-10-26 (Christopher: "New location to add for private event
     # macros... Please add Bloomington, Indiana"). Same pricing as
     # Indianapolis but its own market: its own venue kit, its own event
-    # calendar, and its own phone/inbox ((812) 345-1019 /
-    # infobloom@wineandcanvas.com), so it gets its own slug rather than
-    # keywords bolted onto indianapolis.
+    # calendar, so it gets its own slug rather than keywords bolted onto
+    # indianapolis. (It also had its own phone/inbox then - (812) 345-1019 /
+    # infobloom@wineandcanvas.com, the former licensee's. Both are gone from
+    # the site as of 2026-11-13; see the knowledge-base file.)
     #
     # NOTE: Bloomington and its surrounding towns were in
     # out_of_scope_location until this change - they were the Bloomington

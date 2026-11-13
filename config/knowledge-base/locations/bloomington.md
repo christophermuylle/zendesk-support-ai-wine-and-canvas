@@ -1,6 +1,7 @@
 # Bloomington, IN
 
-Source: wineandcanvas.com/bloomington/ - confirm current before relying on it.
+Source: wineandcanvas.com/indiana/bloomington/ - confirm current before relying
+on it.
 Added 2026-10-26 when Christopher brought Bloomington in as a private-event
 market ("Is the same pricing as Indianapolis"). Everything below was read off
 the live subsite that day, not inferred from Indianapolis.
@@ -11,9 +12,16 @@ private-event pricing in src/private-event-quotes.ts (Group A, the same as
 Indianapolis) - do not quote a range from this file.
 
 ## Booking
-Direct link: https://wineandcanvas.com/bloomington/
-Event calendar: https://wineandcanvas.com/bloomington/events/
-Private events page: https://wineandcanvas.com/bloomington/parties/
+Direct link: https://wineandcanvas.com/indiana/bloomington/
+Event calendar: https://wineandcanvas.com/indiana/bloomington/
+Private events page: https://wineandcanvas.com/indiana/parties/
+
+Christopher, 2026-11-13: "there is no more bloomington page. It's now
+re-directed to Indiana." The Indiana markets were consolidated onto one
+/indiana/ subsite; Bloomington's own page IS its event calendar there
+(H1 "Bloomington Paint and Sip Event Calendar"). The standalone
+/bloomington/ URLs still answered 200 on 2026-11-13, so treat them as
+living on borrowed time, not as current.
 Book through the event listing's "Get Tickets" button on the website -
 each event has its own registration page.
 
@@ -35,7 +43,7 @@ part of our service area for support now. We will change phone number and
 contact info shortly on the page." So support is ours as of that date, and
 the shared contact above is what a reply should give the customer.
 
-The live page still showed Bloomington's own (812) 345-1019 /
-infobloom@wineandcanvas.com on 2026-10-26 - recorded here only so nobody
-re-adds it from the site before it is updated. Do NOT quote it: it is the
-former licensee's line.
+RESOLVED 2026-11-13: the new /indiana/bloomington/ page shows (866) 631-0226
+and no (812) 345-1019 or infobloom@ anywhere on it. The former licensee's
+line is gone from the site. Still do NOT quote it if it turns up in an old
+cached page or an archived email.

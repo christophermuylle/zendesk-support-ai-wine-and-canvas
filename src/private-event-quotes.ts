@@ -678,7 +678,7 @@ const RESTAURANT_LIST_INDIANAPOLIS = "https://drive.google.com/file/d/1ljOmNUETC
 // Christopher, 2026-10-26, adding Bloomington: "Is the same pricing as
 // Indianapolis... Here is the venue kit link". Its own kit, not a share of
 // Indianapolis's.
-const RESTAURANT_LIST_BLOOMINGTON = "https://drive.google.com/file/d/1PVGbphfP5tJU2G11Y10CLHf35wmhdSL0/view?usp=sharing";
+const RESTAURANT_LIST_BLOOMINGTON = "https://drive.google.com/file/d/1vQL2EjtHe3sBXuZCC4LF5mSso5BfvcfC/view?usp=sharing";
 // Christopher, 2026-10-26, adding Sarasota: "Please quote private events the
 // same pricing as Tampa but send this SARASOTA RESTAURANT LIST LINK". Its own
 // kit, not a share of Tampa's.
@@ -972,12 +972,19 @@ export const PRIVATE_EVENT_LOCATION_CALENDAR_LINKS: Record<PrivateEventLocationK
   orlando: "https://wineandcanvas.com/florida/orlando/",
   "fort-lauderdale": "https://wineandcanvas.com/florida/fort-lauderdale/",
   miami: "https://wineandcanvas.com/florida/fort-lauderdale/",
-  indianapolis: "https://wineandcanvas.com/indianapolis/events/",
-  // Read off the Bloomington subsite's own nav on 2026-10-26 (its "Event
-  // Calendar" link), not pattern-matched from Indianapolis's.
-  bloomington: "https://wineandcanvas.com/bloomington/events/",
+  // Same Indiana restructure: /indianapolis/events/ now 302s to
+  // /indiana/indianapolis/ (checked 2026-11-13). Pointed at the destination
+  // so the quote does not depend on a redirect rule staying in place.
+  indianapolis: "https://wineandcanvas.com/indiana/indianapolis/",
+  // Christopher, 2026-11-13: "there is no more bloomington page. It's now
+  // re-directed to Indiana." The Indiana markets now live on one /indiana/
+  // subsite, and Bloomington's calendar is /indiana/bloomington/ (confirmed
+  // 2026-11-13: H1 "Bloomington Paint and Sip Event Calendar"). The old
+  // /bloomington/events/ URL still answered 200 that day, so this is updated
+  // ahead of the redirect rather than because the link was already broken.
+  bloomington: "https://wineandcanvas.com/indiana/bloomington/",
   // Served out of Bloomington, so the same public calendar.
-  "bloomington-travel": "https://wineandcanvas.com/bloomington/events/",
+  "bloomington-travel": "https://wineandcanvas.com/indiana/bloomington/",
   "grand-rapids": "https://wineandcanvas.com/michigan/grand-rapids/",
   // Served from Grand Rapids since 2026-10-19 - same public calendar.
   cadillac: "https://wineandcanvas.com/michigan/grand-rapids/",
