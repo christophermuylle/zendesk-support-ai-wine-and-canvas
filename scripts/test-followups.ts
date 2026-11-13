@@ -259,18 +259,18 @@ async function main() {
   // claimNextCode is ever called) so the Bloomington path is actually
   // exercised.
   //
-  // Christopher, 2026-10-26: "I will add $10 off promo codes soon as well."
-  // Until his sheet exists, Bloomington's pool is null, and email 3 must tag
-  // for a human rather than hand out an Indianapolis code that may be scoped
-  // to the Indianapolis subsite and would not redeem.
+  // Christopher, 2026-11-13: "Bloomington should use the same codes as
+  // Indianapolis." Bloomington must now get PAST the pool guard and claim
+  // from the indianapolis sheet. With no network here the Sheets call throws,
+  // and that throw path names the pool it tried - which is what pins
+  // Bloomington to indianapolis rather than merely "not null".
   {
     const bloomStore = new Map<number, StoredTicket>();
     const bt = makeTicket(9100, 130, ["private_event_quote_sent_standard", "private_event_location_bloomington"], "Blair Bloomington");
     bt.ticket.tags.push(FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG);
     bloomStore.set(9100, bt);
-    // A market that DOES have a sheet, as the control - it must get past the
-    // pool guard and fail later instead (no network here, so it throws and
-    // takes the throw path), proving the guard is Bloomington-specific.
+    // Indianapolis as the control: Bloomington must now behave identically to
+    // it, naming the same pool on the same code path.
     const ct = makeTicket(9101, 130, ["private_event_quote_sent_standard", "private_event_location_indianapolis"], "Casey Control");
     ct.ticket.tags.push(FOLLOW_UP_1_SENT_TAG, FOLLOW_UP_2_SENT_TAG);
     bloomStore.set(9101, ct);
@@ -281,8 +281,8 @@ async function main() {
     process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = "stub-key-never-used-the-pool-guard-returns-first";
     // Both the pool guard and the later throw path tag the same two tags, so
     // the tags alone cannot tell them apart. Capture the log line to pin WHICH
-    // path ran - otherwise mapping Bloomington back to the Indianapolis sheet
-    // would still pass every assertion below.
+    // path ran - otherwise setting Bloomington back to null would still pass
+    // the tag assertions below.
     const logged: string[] = [];
     const realError = console.error;
     console.error = (...args: unknown[]) => {
@@ -302,10 +302,16 @@ async function main() {
     for (const line of logged) realError(line);
     const bloomLog = logged.find((l) => l.includes("ticket 9100"));
     assert(
-      bloomLog !== undefined && bloomLog.includes("has no promo code sheet yet"),
-      `Bloomington stage 3 must stop at the "no promo code sheet yet" guard, not fall through to a Sheets call. ` +
-        `Its log line was: ${JSON.stringify(bloomLog ?? "(none)")}. If it mentions a sheet THROWING, Bloomington ` +
-        `is mapped to another market's pool again.`
+      bloomLog !== undefined && !bloomLog.includes("has no promo code sheet yet"),
+      `Bloomington stage 3 must get PAST the pool guard now that it shares Indianapolis's codes. Its log line ` +
+        `was: ${JSON.stringify(bloomLog ?? "(none)")}. "has no promo code sheet yet" means its pool is null ` +
+        `again and email 3 is silently held - Christopher, 2026-11-13: "Bloomington should use the same codes ` +
+        `as Indianapolis."`
+    );
+    assert(
+      bloomLog !== undefined && /from the "indianapolis" sheet/.test(bloomLog),
+      `Bloomington stage 3 must claim from the "indianapolis" pool specifically, not merely some non-null pool. ` +
+        `Its log line was: ${JSON.stringify(bloomLog ?? "(none)")}.`
     );
     const controlLog = logged.find((l) => l.includes("ticket 9101"));
     assert(
@@ -313,10 +319,15 @@ async function main() {
       `The Indianapolis control must get PAST the pool guard - it has a sheet. Its log line was: ` +
         `${JSON.stringify(controlLog ?? "(none)")}.`
     );
+    assert(
+      controlLog !== undefined && /from the "indianapolis" sheet/.test(controlLog),
+      `The Indianapolis control must name the same pool Bloomington does. Its log line was: ` +
+        `${JSON.stringify(controlLog ?? "(none)")}.`
+    );
     const bloomTags = bloomStore.get(9100)!.ticket.tags;
     assert(
       bloomResult.sent.filter((x) => x.ticketId === 9100).length === 0,
-      "Bloomington stage 3 must NOT send while it has no promo code sheet - an Indianapolis code may be scoped to that subsite and would not redeem"
+      "Bloomington stage 3 must not report as sent when the Sheets call fails - the code claim threw, so nothing went out"
     );
     assert(
       bloomTags.includes("needs_human") && bloomTags.includes(`${FOLLOW_UP_3_SENT_TAG}_needs_manual_code`),

@@ -107,18 +107,20 @@ const PRIVATE_EVENT_LOCATION_PROMO_POOL: Record<PrivateEventLocationKey, PromoPo
   "fort-lauderdale": "florida",
   miami: "florida",
   indianapolis: "indianapolis",
-  // Christopher, 2026-10-26: "I will add $10 off promo codes soon as well."
-  // Until then, null - NOT the Indianapolis sheet. Those codes are named
-  // "Indianapolis $10 One Time Codes" and if they are scoped to the
-  // Indianapolis subsite in WooCommerce they would not redeem at Bloomington,
-  // so email 3 would mail a dead code and look like it had worked. With null
-  // the ticket is tagged needs_human + _needs_manual_code instead, which is
-  // visible and says why in the log. One line to change once his sheet
-  // exists: add "bloomington" to PromoPool in src/promo-codes.ts with its
-  // spreadsheet id, and name it here.
-  bloomington: null,
-  // Same as bloomington - served from there, and no sheet for it yet either.
-  "bloomington-travel": null,
+  // Christopher, 2026-11-13: "Bloomington should use the same codes as
+  // Indianapolis."
+  //
+  // This was null from 2026-10-26 on one specific worry: the codes are named
+  // "Indianapolis $10 One Time Codes", and if they were scoped to the
+  // Indianapolis subsite in WooCommerce they would not redeem at Bloomington -
+  // email 3 would mail a dead code and look like it had worked. That worry no
+  // longer applies. The Indiana markets were consolidated onto one /indiana/
+  // subsite in November; /indiana/bloomington/ and /indiana/indianapolis/ now
+  // share a single store (both check out through /indiana/cart/), so a code
+  // valid on one is valid on the other.
+  bloomington: "indianapolis",
+  // Served out of Bloomington, so the same pool.
+  "bloomington-travel": "indianapolis",
   "grand-rapids": "michigan",
   cadillac: "michigan",
 };
