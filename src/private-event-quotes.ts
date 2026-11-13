@@ -1020,7 +1020,7 @@ export function renderBelowMinimumReply(
     ``,
     `Cheers,`,
     ``,
-    `Raimey — Private Event Coordinator`,
+    `Jessica Muylle — Private Event Coordinator`,
     ``,
     `The Wine & Canvas Team`,
   ];
@@ -1110,7 +1110,7 @@ function renderCorporateOrStandard(
     ``,
     `Cheers,`,
     ``,
-    `Raimey — Private Event Coordinator`,
+    `Jessica Muylle — Private Event Coordinator`,
     ``,
     `The Wine & Canvas Team`,
   ]);
@@ -1172,7 +1172,7 @@ function renderFundraiser(
     `If you'd like to move forward with the planning process, don't hesitate to reach out and we can get you started! Dates go fast, especially on weekends — I'd love to get yours on the calendar! 🎉`,
     ``,
     `Cheers,`,
-    `Raimey`,
+    `Jessica Muylle`,
     `The Wine & Canvas Team`,
   ];
 
@@ -1234,7 +1234,7 @@ function renderKids(loc: PrivateEventLocationInfo, locationKey: PrivateEventLoca
     `__EMBED_KIDS_FAMILY__`,
     ``,
     `Cheers,`,
-    `Raimey`,
+    `Jessica Muylle`,
     `The Wine & Canvas Team`,
   ];
 
