@@ -1059,6 +1059,53 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  // South Bend is a licensee market - Christopher, 2026-11-13: "south bend
+  // will be going to south bend's contact, not our support email." It was
+  // already in out_of_scope_location, but only as "south bend, in", and
+  // keywordMatches is a literal match - so the two forms below walked
+  // straight past it into a quote. These three must ALL be excluded.
+  {
+    label: "South Bend licensee market (comma form) must not be quoted",
+    ctx: {
+      ticket: {
+        id: 90951, subject: "Party Request from Sam Bend",
+        description: "Party Request from Wine & Canvas\n\nName: Sam Bend\nEmail: sam@example.com\nPhone: 5745550112\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: South Bend, IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Sam Bend", email: "sam@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Sam Bend\nEmail: sam@example.com\nPhone: 5745550112\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: South Bend, IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "South Bend licensee market (no comma) must not be quoted",
+    ctx: {
+      ticket: {
+        id: 90952, subject: "Party Request from Nina Bend",
+        description: "Party Request from Wine & Canvas\n\nName: Nina Bend\nEmail: nina@example.com\nPhone: 5745550112\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: South Bend IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Nina Bend", email: "nina@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Nina Bend\nEmail: nina@example.com\nPhone: 5745550112\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: South Bend IN\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "South Bend licensee market (state spelled out) must not be quoted",
+    ctx: {
+      ticket: {
+        id: 90953, subject: "Party Request from Owen Bend",
+        description: "Party Request from Wine & Canvas\n\nName: Owen Bend\nEmail: owen@example.com\nPhone: 5745550112\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: South Bend, Indiana\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Owen Bend", email: "owen@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Owen Bend\nEmail: owen@example.com\nPhone: 5745550112\nPreferred Date: 2027-02-13\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: South Bend, Indiana\nAdditional Info: Birthday party\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
   {
     label: "Sarasota standard private party (2026-10-26): Tampa pricing, Sarasota venue kit",
     ctx: {
@@ -2083,6 +2130,29 @@ async function main() {
       throw new Error(
         `ASSERTION FAILED: the Bloomington quote states that a travel fee WILL be required. Bloomington, ` +
           `Martinsville and Ellettsville carry none - telling those customers a fee is coming would lose jobs.`
+      );
+    }
+  }
+
+  // South Bend: all three phrasings must land on out_of_scope_location and
+  // never reach a quote. Christopher, 2026-11-13: "south bend will be going
+  // to south bend's contact, not our support email."
+  for (const label of [
+    "South Bend licensee market (comma form) must not be quoted",
+    "South Bend licensee market (no comma) must not be quoted",
+    "South Bend licensee market (state spelled out) must not be quoted",
+  ]) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "out_of_scope_location") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}", expected out_of_scope_location. ` +
+          `A South Bend customer would get a quote from us instead of being routed to South Bend's own contact.`
+      );
+    }
+    if (r.matchedLocation !== null) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - resolved to a servable market (${JSON.stringify(r.matchedLocation)}).`
       );
     }
   }

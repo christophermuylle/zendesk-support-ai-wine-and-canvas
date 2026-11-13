@@ -144,7 +144,18 @@ rules:
       any_keywords:
         - "columbus, oh"
         - "toledo, oh"
-        - "south bend, in"
+        # Christopher, 2026-11-13: "south bend will be going to south bend's
+        # contact, not our support email." It was already excluded, but only
+        # as the comma form - and keywordMatches is a literal match with no
+        # flexible whitespace, so "South Bend IN" and "South Bend Indiana"
+        # both slipped past it. That is exactly how Lansing under-caught for
+        # weeks. Bare "south bend" now, because unlike Bloomington or Bedford
+        # there is no second South Bend and it is not a surname, so there is
+        # nothing to disambiguate against. Worst case is a customer in one of
+        # our own markets mentioning they are driving down from South Bend,
+        # and this rule is action: no_action - the ticket is only tagged and
+        # left for a human, never answered wrongly.
+        - "south bend"
         # Bloomington itself was here until 2026-10-26, when Christopher
         # brought it in as a private-event market with its own venue kit and
         # Indianapolis pricing, then confirmed the wider change: "We are
