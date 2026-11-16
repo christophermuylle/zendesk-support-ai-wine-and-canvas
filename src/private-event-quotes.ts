@@ -634,7 +634,13 @@ const GRAND_RAPIDS_FUNDRAISER = { retail: 40, keep: 35 };
 // and fall into the unstated default bucket (INFERRED - see #2).
 const KIDS_DEFAULT_PRICE = 29; // Tampa, Fort Myers, Indianapolis, Grand Rapids, Cadillac (INFERRED for the last two)
 const KIDS_FORT_LAUDERDALE_PRICE = 27;
-const KIDS_ORLANDO_NAPLES_MIAMI_PRICE = 35;
+// Orlando split off this shared rate on 2026-11-16 (Christopher: "Cookies and
+// Canvas for Orlando quote has changed pricing from $35 per person to $39 per
+// person"). Naples and Miami were NOT mentioned and stay at $35, so Orlando
+// gets its own constant rather than the shared one being edited - bumping the
+// shared one would have quietly raised two other markets by $4 a head.
+const KIDS_ORLANDO_PRICE = 39;
+const KIDS_NAPLES_MIAMI_PRICE = 35;
 
 /**
  * Pet Portraits is a fundraiser-only add-on project with its own
@@ -707,7 +713,7 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   naples: {
     displayName: "Naples, FL",
     restaurantListUrl: RESTAURANT_LIST_NAPLES_MIAMI,
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_NAPLES_MIAMI_PRICE },
   },
   tampa: {
     displayName: "Tampa / St. Pete / Clearwater, FL",
@@ -739,11 +745,12 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
     restaurantListUrl: RESTAURANT_LIST_ORLANDO,
     // Christopher, 2026-10-19: reverses the 2026-10-15 move to Fort Myers
     // pricing. Orlando is back on Group B across every category - 45/40/35
-    // standard, 50/45/40 corporate, $45 fundraiser retail, $35 kids - and back
+    // standard, 50/45/40 corporate, $45 fundraiser retail, and kids at $35 (raised
+    // to $39 on 2026-11-16, see KIDS_ORLANDO_PRICE) - and back
     // in the +$10 pet-portrait group with Naples and Miami. His 2026-10-19
     // message quoted the bands as 8-30/31-50/51+, then confirmed Orlando
     // should match every other market's 8-29/30-49/50+ edges.
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_PRICE },
   },
   "fort-lauderdale": {
     displayName: "Fort Lauderdale, FL",
@@ -753,7 +760,7 @@ export const PRIVATE_EVENT_LOCATIONS: Record<PrivateEventLocationKey, PrivateEve
   miami: {
     displayName: "Miami, FL",
     restaurantListUrl: RESTAURANT_LIST_NAPLES_MIAMI, // shares the combined Naples/Miami link
-    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_ORLANDO_NAPLES_MIAMI_PRICE },
+    pricing: { corporateTiers: GROUP_B_CORPORATE_TIERS, standardTiers: GROUP_B_STANDARD_TIERS, ...GROUP_B_FUNDRAISER_FIELDS(), kidsPricePerPerson: KIDS_NAPLES_MIAMI_PRICE },
   },
   indianapolis: {
     displayName: "Indianapolis, IN",

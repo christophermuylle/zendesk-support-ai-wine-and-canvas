@@ -1134,6 +1134,53 @@ Indianapolis`,
       brand: "wine_and_canvas",
     },
   },
+  // Orlando's Cookies & Canvas rate went $35 -> $39 on 2026-11-16
+  // (Christopher). Naples and Miami shared that $35 constant and were NOT
+  // part of the change, so they run here as controls: editing the shared
+  // constant instead of splitting Orlando off would raise all three and
+  // these two scenarios are what catches it.
+  {
+    label: "Orlando Cookies & Canvas kids party (2026-11-16): $39 per person",
+    ctx: {
+      ticket: {
+        id: 91201, subject: "Party Request from Oliver Kiddo",
+        description: "Party Request from Wine & Canvas\n\nName: Oliver Kiddo\nEmail: oliver@example.com\nPhone: 4075550164\nPreferred Date: 2027-03-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Orlando, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Oliver Kiddo", email: "oliver@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Oliver Kiddo\nEmail: oliver@example.com\nPhone: 4075550164\nPreferred Date: 2027-03-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Orlando, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Naples Cookies & Canvas kids party: still $35 per person",
+    ctx: {
+      ticket: {
+        id: 91202, subject: "Party Request from Nadia Kiddo",
+        description: "Party Request from Wine & Canvas\n\nName: Nadia Kiddo\nEmail: nadia@example.com\nPhone: 2395550177\nPreferred Date: 2027-03-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Naples, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Nadia Kiddo", email: "nadia@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Nadia Kiddo\nEmail: nadia@example.com\nPhone: 2395550177\nPreferred Date: 2027-03-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Naples, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "Miami Cookies & Canvas kids party: still $35 per person",
+    ctx: {
+      ticket: {
+        id: 91203, subject: "Party Request from Marco Kiddo",
+        description: "Party Request from Wine & Canvas\n\nName: Marco Kiddo\nEmail: marco@example.com\nPhone: 3055550188\nPreferred Date: 2027-03-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Miami, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Marco Kiddo", email: "marco@example.com" },
+      comments: [makeComment("Party Request from Wine & Canvas\n\nName: Marco Kiddo\nEmail: marco@example.com\nPhone: 3055550188\nPreferred Date: 2027-03-20\nPreferred Time: 6:00 PM\nGuests: 20\nLocation: Miami, FL\nAdditional Info: Cookies and Canvas kids party, ages 6-10\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
   {
     label: "Sarasota Cookies & Canvas kids party (2026-10-26): Tampa kids pricing",
     ctx: {
@@ -1835,6 +1882,52 @@ async function main() {
   // private events the same pricing as Tampa but send this SARASOTA
   // RESTAURANT LIST LINK."
   const SARASOTA_VENUE_KIT = "16duDOCQhUKjzXNiIhbp3fd4niuI7aTOw";
+  // Orlando's kids rate, and the two markets that used to share its constant.
+  // Christopher, 2026-11-16: "Cookies and Canvas for Orlando quote has changed
+  // pricing from $35 per person to $39 per person." Naples and Miami were not
+  // mentioned, so they must still read $35.
+  // The expected city is a SUBSTRING of matchedLocation, not the whole string:
+  // Naples is matched by the Fort Myers slug in config/locations.yaml, whose
+  // display name reads "Fort Myers / Cape Coral / Naples, FL" even though its
+  // pricing key is naples. The prices below are what actually pin the key -
+  // Fort Myers kids is $29, so a Naples quote reading $29 means it fell back
+  // to the Fort Myers key and lost its own rate.
+  for (const [ticketId, label, cityFragment, want, mustNotSay] of [
+    [91201, "Orlando Cookies & Canvas kids party (2026-11-16): $39 per person", "Orlando", "$39", ["$35", "$29"]],
+    [91202, "Naples Cookies & Canvas kids party: still $35 per person", "Naples", "$35", ["$39", "$29"]],
+    [91203, "Miami Cookies & Canvas kids party: still $35 per person", "Miami", "$35", ["$39", "$29"]],
+  ] as Array<[number, string, string, string, string[]]>) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "event_booking_question") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}" instead of event_booking_question.`
+      );
+    }
+    if (!r.matchedLocation || !r.matchedLocation.includes(cityFragment)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - resolved to ${JSON.stringify(r.matchedLocation)}, which does not mention ` +
+          `"${cityFragment}".`
+      );
+    }
+    const text = (bodiesByTicket.get(ticketId) ?? []).join("\n");
+    if (!text.includes(want)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - the kids quote does not mention ${want}. Orlando is $39 as of 2026-11-16; ` +
+          `Naples and Miami stay at $35.`
+      );
+    }
+    for (const banned of mustNotSay) {
+      if (text.includes(banned)) {
+        throw new Error(
+          `ASSERTION FAILED: ${label} - the kids quote mentions ${banned}. Orlando ($39) and Naples/Miami ($35) no ` +
+            `longer share a kids rate, and $29 would mean the Fort Myers key. One of them is reading the wrong constant.`
+        );
+      }
+    }
+  }
+  console.log("Regression check passed: Orlando Cookies & Canvas is $39 per person, Naples and Miami still $35 (2026-11-16).");
+
   // Kept in step with RESTAURANT_LIST_TAMPA in src/private-event-quotes.ts -
   // updated 2026-10-31 with the link itself. A stale id here would make the
   // "Sarasota must not link Tampa's kit" check below pass vacuously, since it
