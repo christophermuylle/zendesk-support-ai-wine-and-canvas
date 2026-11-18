@@ -441,6 +441,51 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
     },
   },
   {
+    label: 'REGRESSION (#32243, 2026-11-18): an order with a redeemed Gift Voucher is held Open, never closed',
+    ctx: {
+      ticket: {
+        id: 32243,
+        subject: "[Wine and Canvas - Michigan]: New order #182999",
+        description: "You have received a new order.\n\nProduct Quantity Price\nGrinch Wine-Peppino's- Kentwood-Paint and Sip (#181475-9467-GRINCH-WINE-PEPPINOS--KENTWOOD-PAINT-AND-SIP)\nPeppinos Pizzaria & Sports Bar\nGrand Rapids, MI 49508 United States\n 1  $40.00\n\n\t\tSubtotal: \t\n\t\t$40.00\n\t\tPayment method: \t\n\t\tLink by Stripe\n\t\tGift Voucher Used: \t\n\t\t-$28.00\n\t\tTotal: \t\n\t\t$12.00",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Karen Buyer", email: "buyer@example.com" },
+      comments: [makeComment("You have received a new order.\n\nProduct Quantity Price\nGrinch Wine-Peppino's- Kentwood-Paint and Sip (#181475-9467-GRINCH-WINE-PEPPINOS--KENTWOOD-PAINT-AND-SIP)\nPeppinos Pizzaria & Sports Bar\nGrand Rapids, MI 49508 United States\n 1  $40.00\n\n\t\tSubtotal: \t\n\t\t$40.00\n\t\tPayment method: \t\n\t\tLink by Stripe\n\t\tGift Voucher Used: \t\n\t\t-$28.00\n\t\tTotal: \t\n\t\t$12.00", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: 'REGRESSION (2026-11-18): an order with a Discount line in the totals is held Open, never closed',
+    ctx: {
+      ticket: {
+        id: 32244,
+        subject: "[Wine and Canvas - Michigan]: New order #183001",
+        description: "You have received a new order.\n\nProduct Quantity Price\nVintage Snowman - Owosso 12/8 (#182476-5135-VINTAGE-SNOWMAN---OWOSSO-12/8)\nSideline Sports Bar ~ Owosso\nOwosso, MI 48867 United States\n 4  $160.00\n\nSubtotal: $160.00\nDiscount: -$48.00\nPayment method: Visa ending in 4450\nTotal: $112.00",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Allison Buyer", email: "buyer@example.com" },
+      comments: [makeComment("You have received a new order.\n\nProduct Quantity Price\nVintage Snowman - Owosso 12/8 (#182476-5135-VINTAGE-SNOWMAN---OWOSSO-12/8)\nSideline Sports Bar ~ Owosso\nOwosso, MI 48867 United States\n 4  $160.00\n\nSubtotal: $160.00\nDiscount: -$48.00\nPayment method: Visa ending in 4450\nTotal: $112.00", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: 'CONTROL (2026-11-18): a seat product named "Special Discount for 55+" with no Discount totals line is still solved and closed',
+    ctx: {
+      ticket: {
+        id: 32245,
+        subject: "[Wine and Canvas - Michigan]: New order #183002",
+        description: "You have received a new order.\n\nProduct Quantity Price\nSpecial Discount for 55+ - 10/20/26 (#128804-5525-SPECIAL-DISCOUNT-FOR-55)\nSenior rate admission\nIndianapolis, IN United States\n 3  $107.00\n\nSubtotal: $107.00\nTotal: $107.00\nPayment method: Visa ending in 3333",
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Senior Buyer", email: "buyer@example.com" },
+      comments: [makeComment("You have received a new order.\n\nProduct Quantity Price\nSpecial Discount for 55+ - 10/20/26 (#128804-5525-SPECIAL-DISCOUNT-FOR-55)\nSenior rate admission\nIndianapolis, IN United States\n 3  $107.00\n\nSubtotal: $107.00\nTotal: $107.00\nPayment method: Visa ending in 3333", CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
     // REGRESSION (ticket #29324 / order #180826): an ordinary single-seat
     // purchase whose venue is in an excluded city (Lansing, MI). Real
     // ticket, confirmed in Zendesk 2026-09-24: out_of_scope_location
@@ -1709,6 +1754,61 @@ async function main() {
       );
     }
   }
+  // --- Discount codes and redeemed gift vouchers (2026-11-18) ---
+  // Christopher: "Tickets orders that have Gift Voucher or discount codes
+  // used should only be closed by a human. Same with tickets orders with $0
+  // totals."
+  //
+  // This branch is the only thing on this brand that CLOSES a ticket
+  // outright, and Zendesk will not reopen a closed ticket - so a short
+  // payment that goes through it is gone for good.
+  //
+  // The CONTROL is the point: of this brand's orders since 2026-09-01, 34
+  // carry a "Discount:" totals line, and 3 more are seat PRODUCTS named
+  // "Special Discount for 55+" / "Discount - 65+" with no totals line at
+  // all. Those are senior admissions, not a code.
+  for (const [label, ticketId, expectTag] of [
+    ['REGRESSION (#32243, 2026-11-18): an order with a redeemed Gift Voucher is held Open, never closed', 32243, "order_gift_voucher_used"],
+    ['REGRESSION (2026-11-18): an order with a Discount line in the totals is held Open, never closed', 32244, "order_discount_used"],
+  ] as Array<[string, number, string]>) {
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.finalAction !== "order_confirmation_held_discount_or_voucher") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - produced "${r.finalAction}" instead of ` +
+          `order_confirmation_held_discount_or_voucher.`
+      );
+    }
+    const statuses = statusesSetByTicket.get(ticketId) ?? [];
+    if (statuses.join(",") !== "open") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - status updates were "${statuses.join(",") || "(none)"}", expected a single ` +
+          `"open". A "closed" here is unrecoverable.`
+      );
+    }
+    const tags = tagsAddedByTicket.get(ticketId) ?? [];
+    for (const t of ["needs_human", expectTag]) {
+      if (!tags.includes(t)) {
+        throw new Error(`ASSERTION FAILED: ${label} - expected tag "${t}", got [${tags.join(", ")}].`);
+      }
+    }
+  }
+
+  {
+    const label =
+      'CONTROL (2026-11-18): a seat product named "Special Discount for 55+" with no Discount totals line is still solved and closed';
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.finalAction !== "order_confirmation_solved_and_closed") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - produced "${r.finalAction}" instead of ` +
+          `order_confirmation_solved_and_closed. The hold is matching the WORD "discount" rather than the totals ` +
+          `line, so senior-rate admissions are being held for a human.`
+      );
+    }
+  }
+  console.log("Regression check passed: discount codes and redeemed gift vouchers are held Open for a human; discount-named seat products still solve and close (2026-11-18).");
+
   // --- Regression checks for the order-handling rules (2026-09-24) ---
   const orderExpectations: Array<[string, string, string]> = [
     [

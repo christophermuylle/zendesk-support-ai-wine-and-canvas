@@ -439,3 +439,48 @@ export function extractGuestCount(formBody: string | null | undefined): number |
   }
   return null;
 }
+
+// --- Discount / gift-voucher detection on order notifications ---------------
+//
+// Christopher, 2026-11-18: "Tickets orders that have Gift Voucher or discount
+// codes used should only be closed by a human. Same with tickets orders with
+// $0 totals."
+//
+// Both anchor on the TOTALS BLOCK, not the word anywhere in the body, and
+// that distinction is the whole design. Measured on live order
+// notifications before choosing it:
+//
+//   Painting and Vino, 80 recent orders: 2 carry a "Discount:" totals line,
+//   but 13 contain the word "discount" - the other 11 are ordinary two-seat
+//   bundles whose PRODUCT is named "2 Ticket Discount - Bigfoot Brews",
+//   "Duo Discount - Sunset Sail", "Duo discount - 2 Tickets for $80 - Spice".
+//   Matching the word would hold roughly one in seven ordinary orders.
+//
+//   Wine and Canvas, orders since 2026-09-01: 34 carry a "Discount:" totals
+//   line, and 3 more are seat products named "Special Discount for 55+" or
+//   "Discount - 65+" with no totals line at all - senior-rate admissions,
+//   not a code.
+//
+// Gift vouchers have the same trap on Painting and Vino, where "Gift
+// Vouchers (30% Off)" is a product: someone BUYING a voucher, which is an
+// ordinary sale. A voucher being REDEEMED shows up as a "Gift Voucher Used:"
+// line in the totals, and that is what this matches. Both brands use that
+// exact label (WooCommerce Smart Coupons).
+//
+// The amount is required so a label with no figure cannot trip it, and
+// whitespace is permissive because WooCommerce's HTML-to-text rendering puts
+// tabs and newlines between the label and the figure.
+const ORDER_DISCOUNT_TOTAL_RE = /(^|\n)[^\S\n]*Discount:\s*-?\$[\d,.]+/i;
+const ORDER_GIFT_VOUCHER_USED_RE = /(^|\n)[^\S\n]*Gift Voucher Used:\s*-?\$[\d,.]+/i;
+
+/**
+ * Whether a storefront order notification shows a discount code or a
+ * redeemed gift voucher in its totals, and which. Null for an ordinary
+ * order. The caller leaves these for a human rather than closing them.
+ */
+export function orderDiscountOrVoucherUsed(text: string): "discount" | "gift_voucher" | null {
+  const t = text ?? "";
+  if (ORDER_GIFT_VOUCHER_USED_RE.test(t)) return "gift_voucher";
+  if (ORDER_DISCOUNT_TOTAL_RE.test(t)) return "discount";
+  return null;
+}

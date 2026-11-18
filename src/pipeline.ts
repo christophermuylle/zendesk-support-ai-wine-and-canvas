@@ -32,6 +32,7 @@ import {
 import type { DraftResult, RuleDecision, TicketContext } from "./types.js";
 import {
   findDepositLineItem,
+  orderDiscountOrVoucherUsed,
   extractOrderTotal,
   extractFormContactName,
   looksMachineDerivedName,
@@ -72,6 +73,7 @@ export interface PipelineResult {
     | "skipped_out_of_scope"
     | "order_confirmation_solved_and_closed"
     | "order_confirmation_left_open"
+    | "order_confirmation_held_discount_or_voucher"
     | "private_event_deposit_pending"
     | "private_event_final_balance_pending"
     | "newsletter_signup_solved_and_closed"
@@ -223,6 +225,38 @@ export async function processTicket(deps: PipelineDeps, ticketId: number): Promi
     }
 
     const deposit = findDepositLineItem(description);
+
+    // A discount code or a redeemed gift voucher. Christopher, 2026-11-18:
+    // "Tickets orders that have Gift Voucher or discount codes used should
+    // only be closed by a human. Same with tickets orders with $0 totals."
+    //
+    // Left Open with needs_human rather than solved-and-closed, because this
+    // branch is the only thing on either brand that CLOSES a ticket outright
+    // - once closed, Zendesk will not reopen it, so a wrongly discounted
+    // order could never be revisited. The $0 case above already worked this
+    // way; this extends the same caution to money that came in short.
+    //
+    // Checked AFTER the deposit branch on purpose: a private-event deposit
+    // paid with a voucher still belongs to the coordinator as a Private
+    // Event Deposit at Pending, which is not closed either, so it already
+    // satisfies the rule and keeps its proper Reason.
+    if (!deposit) {
+      const reduced = orderDiscountOrVoucherUsed(description);
+      if (reduced) {
+        await deps.zendesk.updateTicket(ticketId, {
+          status: "open",
+          addTags: [...(ruleDecision.addTags ?? []), "needs_human", `order_${reduced}_used`],
+          fields: [{ id: ORDER_CONFIRMATION_FIELD_ID, value: ORDER_CONFIRMATION_FIELD_VALUE }],
+        });
+        return {
+          ticketId,
+          ruleDecision,
+          matchedLocation: null,
+          finalAction: "order_confirmation_held_discount_or_voucher",
+          mode: deps.mode,
+        };
+      }
+    }
 
     // Ordinary order: file it and shut it. Solved and Closed are applied
     // as two sequential updates so the ticket passes through Solved on the
