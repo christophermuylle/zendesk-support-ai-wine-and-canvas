@@ -207,6 +207,27 @@ rules:
         - "kalamazoo, mi"
         - "kalamazoo mi"
         - "greater kalamazoo"
+        # Portage is Kalamazoo's territory. Christopher, 2026-11-24, on
+        # #32604: "Ticket #32604 mentioned Portage, Mi - this is Kalamazoo so
+        # just leave open any private event requests for Portage so i can send
+        # it to licensee." That ticket - Bickford Senior Living of Portage, 10
+        # guests - was auto-sent a clarifying question three seconds after it
+        # arrived, because the rule knew Kalamazoo but not Portage.
+        #
+        # BARE, unlike its Lansing neighbours above, and the reason is that
+        # ticket. Its Location field reads "bickford senior living" with no
+        # city at all; "portage" appears only mid-sentence in the body ("of
+        # portage") and in the sender's address. A state-qualified keyword
+        # would have missed the very ticket this exists to catch.
+        #
+        # Checked against live data before choosing bare: of the 29 tickets
+        # mentioning Portage since 2026-01-01, 26 match the bare form, 17
+        # carry the state, and ZERO refer to a Portage in another state
+        # (Indiana, Wisconsin, Ohio and Pennsylvania all have one). It is also
+        # not a personal name, which is what forced "mason", "perry" and
+        # "leslie" to be qualified - the form body carries the customer's own
+        # name.
+        - "portage"
         # The rest of the Greater Lansing / Mid Michigan territory
         # (Christopher, 2026-10-01). Until this list existed the rule only
         # caught "lansing, mi" and "greater lansing": 11 tickets had ever

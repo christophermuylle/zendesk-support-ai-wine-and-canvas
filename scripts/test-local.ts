@@ -441,6 +441,32 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
     },
   },
   {
+    // REGRESSION (ticket #32604, 2026-11-23): Bickford Senior Living OF
+    // PORTAGE, 10 guests. Portage is the Kalamazoo licensee's territory, but
+    // the rule only knew "kalamazoo", so we auto-sent a clarifying question
+    // three seconds after it arrived. Christopher, 2026-11-24: "this is
+    // Kalamazoo so just leave open any private event requests for Portage so
+    // i can send it to licensee."
+    //
+    // The Location field here says "bickford senior living" - no city. The
+    // only "portage" is mid-sentence in Additional Info. That is why the
+    // keyword is bare rather than state-qualified; "portage, mi" would not
+    // match this ticket.
+    label: 'REGRESSION (#32604, 2026-11-24): a Portage, MI party request is left for the Kalamazoo licensee, not answered',
+    ctx: {
+      ticket: {
+        id: 32604,
+        subject: "Party Request from brittany long",
+        description: `Party Request from Wine & Canvas Michigan\n\nName: brittany long\nEmail: PortageMEC@example.com\nPhone: 2695479879\nPreferred Date: 2027-01-06\nPreferred Time: [preferredtime]\nGuests: 10\nLocation: bickford senior living\nAdditional Info: inquiring about options and pricing for a personal event for our seniors here at bickford senior living of portage.\nReferral: none\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)`,
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "brittany long", email: "brittany@example.com" },
+      comments: [makeComment(`Party Request from Wine & Canvas Michigan\n\nName: brittany long\nEmail: PortageMEC@example.com\nPhone: 2695479879\nPreferred Date: 2027-01-06\nPreferred Time: [preferredtime]\nGuests: 10\nLocation: bickford senior living\nAdditional Info: inquiring about options and pricing for a personal event for our seniors here at bickford senior living of portage.\nReferral: none\n\n-- This e-mail was sent from a contact form on Wine & Canvas (https://wineandcanvas.com)`, CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
     label: 'REGRESSION (#32243, 2026-11-18): an order with a redeemed Gift Voucher is held Open, never closed',
     ctx: {
       ticket: {
@@ -1754,6 +1780,38 @@ async function main() {
       );
     }
   }
+  // Portage belongs to the Kalamazoo licensee (2026-11-24).
+  {
+    const label =
+      'REGRESSION (#32604, 2026-11-24): a Portage, MI party request is left for the Kalamazoo licensee, not answered';
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (r.ruleDecision.matchedRule !== "out_of_scope_location") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}", expected out_of_scope_location. ` +
+          `This is the live #32604 body: the Location field is "bickford senior living" with no city, and the only ` +
+          `"portage" is mid-sentence in Additional Info. A state-qualified keyword does not catch it.`
+      );
+    }
+    if (r.matchedLocation !== null) {
+      throw new Error(`ASSERTION FAILED: ${label} - resolved to a servable market (${JSON.stringify(r.matchedLocation)}).`);
+    }
+    const statuses = statusesSetByTicket.get(32604) ?? [];
+    if (statuses.join(",") !== "open") {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - status updates were "${statuses.join(",") || "(none)"}", expected a single ` +
+          `"open" so Christopher can hand it to the licensee.`
+      );
+    }
+    if (commentedTicketIds.includes(32604)) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - a comment was posted to a licensee-territory ticket. #32604 got an automated ` +
+          `clarifying question; that is the bug.`
+      );
+    }
+  }
+  console.log("Regression check passed: Portage, MI private-event requests are left Open for the Kalamazoo licensee (#32604).");
+
   // --- Discount codes and redeemed gift vouchers (2026-11-18) ---
   // Christopher: "Tickets orders that have Gift Voucher or discount codes
   // used should only be closed by a human. Same with tickets orders with $0
