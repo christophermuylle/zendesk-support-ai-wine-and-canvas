@@ -441,6 +441,34 @@ const scenarios: { label: string; ctx: TicketContext; priorOrderTicketIds?: numb
     },
   },
   {
+    label: "REGRESSION (2026-11-24): a written-out Portage, MI location belongs to the Kalamazoo licensee too",
+    ctx: {
+      ticket: {
+        id: 32611, subject: "Party Request from Dana Qual",
+        description: `Party Request from Wine & Canvas Michigan\n\nName: Dana Qual\nEmail: dana@example.com\nPhone: 2695550111\nPreferred Date: 2027-02-02\nPreferred Time: 6:00 PM\nGuests: 12\nLocation: Portage, MI\nAdditional Info: birthday party\nReferral: none`,
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Dana Qual", email: "t@example.com" },
+      comments: [makeComment(`Party Request from Wine & Canvas Michigan\n\nName: Dana Qual\nEmail: dana@example.com\nPhone: 2695550111\nPreferred Date: 2027-02-02\nPreferred Time: 6:00 PM\nGuests: 12\nLocation: Portage, MI\nAdditional Info: birthday party\nReferral: none`, CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
+    label: "CONTROL (2026-11-24): a FLORIDA request that merely mentions Portage is still quoted by us",
+    ctx: {
+      ticket: {
+        id: 32612, subject: "Party Request from Pat Florida",
+        description: `Party Request from Wine & Canvas Florida\n\nName: Pat Florida\nEmail: pat@example.com\nPhone: 2395550133\nPreferred Date: 2027-02-02\nPreferred Time: 6:00 PM\nGuests: 12\nLocation: Naples, FL\nAdditional Info: our group is flying in from Portage for a reunion\nReferral: none`,
+        status: "new", requester_id: CUSTOMER_ID, tags: [],
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      requester: { id: CUSTOMER_ID, name: "Pat Florida", email: "t@example.com" },
+      comments: [makeComment(`Party Request from Wine & Canvas Florida\n\nName: Pat Florida\nEmail: pat@example.com\nPhone: 2395550133\nPreferred Date: 2027-02-02\nPreferred Time: 6:00 PM\nGuests: 12\nLocation: Naples, FL\nAdditional Info: our group is flying in from Portage for a reunion\nReferral: none`, CUSTOMER_ID)],
+      brand: "wine_and_canvas",
+    },
+  },
+  {
     // REGRESSION (ticket #32604, 2026-11-23): Bickford Senior Living OF
     // PORTAGE, 10 guests. Portage is the Kalamazoo licensee's territory, but
     // the rule only knew "kalamazoo", so we auto-sent a clarifying question
@@ -1786,11 +1814,12 @@ async function main() {
       'REGRESSION (#32604, 2026-11-24): a Portage, MI party request is left for the Kalamazoo licensee, not answered';
     const r = resultsByLabel.get(label);
     if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
-    if (r.ruleDecision.matchedRule !== "out_of_scope_location") {
+    if (r.ruleDecision.matchedRule !== "out_of_scope_portage_michigan") {
       throw new Error(
-        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}", expected out_of_scope_location. ` +
-          `This is the live #32604 body: the Location field is "bickford senior living" with no city, and the only ` +
-          `"portage" is mid-sentence in Additional Info. A state-qualified keyword does not catch it.`
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}", expected ` +
+          `out_of_scope_portage_michigan. This is the live #32604 body: the Location field is "bickford senior ` +
+          `living" with no city, and the only "portage" is mid-sentence in Additional Info, so only the bare ` +
+          `Michigan-gated rule catches it.`
       );
     }
     if (r.matchedLocation !== null) {
@@ -1807,6 +1836,29 @@ async function main() {
       throw new Error(
         `ASSERTION FAILED: ${label} - a comment was posted to a licensee-territory ticket. #32604 got an automated ` +
           `clarifying question; that is the bug.`
+      );
+    }
+  }
+  {
+    const label = "REGRESSION (2026-11-24): a written-out Portage, MI location belongs to the Kalamazoo licensee too";
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (!/^out_of_scope/.test(r.ruleDecision.matchedRule ?? "")) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}", expected an out_of_scope rule. ` +
+          `The written-out "Portage, MI" form must be excluded as well as the bare one.`
+      );
+    }
+  }
+  {
+    const label = "CONTROL (2026-11-24): a FLORIDA request that merely mentions Portage is still quoted by us";
+    const r = resultsByLabel.get(label);
+    if (!r) throw new Error(`ASSERTION FAILED: scenario "${label}" did not run`);
+    if (/^out_of_scope/.test(r.ruleDecision.matchedRule ?? "")) {
+      throw new Error(
+        `ASSERTION FAILED: ${label} - matched "${r.ruleDecision.matchedRule}". A Naples booking whose notes ` +
+          `happen to say "Portage" must NOT be refused - the bare keyword is gated on Michigan precisely so the ` +
+          `Indiana, Wisconsin, Ohio and Pennsylvania Portages cannot cost us a real customer.`
       );
     }
   }

@@ -208,26 +208,19 @@ rules:
         - "kalamazoo mi"
         - "greater kalamazoo"
         # Portage is Kalamazoo's territory. Christopher, 2026-11-24, on
-        # #32604: "Ticket #32604 mentioned Portage, Mi - this is Kalamazoo so
-        # just leave open any private event requests for Portage so i can send
-        # it to licensee." That ticket - Bickford Senior Living of Portage, 10
-        # guests - was auto-sent a clarifying question three seconds after it
-        # arrived, because the rule knew Kalamazoo but not Portage.
+        # #32604: "this is Kalamazoo so just leave open any private event
+        # requests for Portage so i can send it to licensee", and then: "If
+        # it's a private event request for Michigan and they mention Portage
+        # in the request - it would be for Portage, MI so it would go to
+        # Kalamazoo."
         #
-        # BARE, unlike its Lansing neighbours above, and the reason is that
-        # ticket. Its Location field reads "bickford senior living" with no
-        # city at all; "portage" appears only mid-sentence in the body ("of
-        # portage") and in the sender's address. A state-qualified keyword
-        # would have missed the very ticket this exists to catch.
-        #
-        # Checked against live data before choosing bare: of the 29 tickets
-        # mentioning Portage since 2026-01-01, 26 match the bare form, 17
-        # carry the state, and ZERO refer to a Portage in another state
-        # (Indiana, Wisconsin, Ohio and Pennsylvania all have one). It is also
-        # not a personal name, which is what forced "mason", "perry" and
-        # "leslie" to be qualified - the form body carries the customer's own
-        # name.
-        - "portage"
+        # The state-qualified forms live here, where they are unambiguous on
+        # their own. The BARE word needs Michigan alongside it, so it has its
+        # own rule below (out_of_scope_portage_michigan) - required_keywords
+        # is an AND gate and everything in this list shares one match block.
+        - "portage, mi"
+        - "portage mi"
+        - "portage, michigan"
         # The rest of the Greater Lansing / Mid Michigan territory
         # (Christopher, 2026-10-01). Until this list existed the rule only
         # caught "lansing, mi" and "greater lansing": 11 tickets had ever
@@ -271,6 +264,36 @@ rules:
         - "jackson mi"
         - "charlotte, mi"
         - "charlotte mi"
+    action: no_action
+    force_human_review: false
+    add_tags: ["out_of_scope_location"]
+
+  # Portage, MI - the bare city name, gated on Michigan.
+  #
+  # Christopher, 2026-11-24: "If it's a private event request for Michigan and
+  # they mention Portage in the request - it would be for Portage, MI so it
+  # would go to Kalamazoo."
+  #
+  # Why bare rather than only the qualified forms above: #32604 (Bickford
+  # Senior Living, 10 guests) has "bickford senior living" in its Location
+  # field with no city at all, and the only "portage" is mid-sentence in
+  # Additional Info - "our seniors here at bickford senior living of portage".
+  # "portage, mi" does not touch it, and we auto-answered it three seconds
+  # after it arrived.
+  #
+  # Why the Michigan gate: Indiana, Wisconsin, Ohio and Pennsylvania all have
+  # a Portage, and this brand serves Indiana and Florida as well. The gate
+  # keeps a bare "portage" from refusing service outside Michigan.
+  #
+  # The gate costs nothing on real traffic: of the 26 tickets mentioning
+  # Portage since 2026-01-01, 24 contain the word "michigan" (the Michigan
+  # form body is headed "Wine & Canvas Michigan"), and the two that do not
+  # write "Portage, MI", which the qualified entries above already catch.
+  # Between them the two rules cover all 26.
+  - name: out_of_scope_portage_michigan
+    match:
+      required_keywords: ["michigan"]
+      any_keywords: ["portage"]
     action: no_action
     force_human_review: false
     add_tags: ["out_of_scope_location"]
