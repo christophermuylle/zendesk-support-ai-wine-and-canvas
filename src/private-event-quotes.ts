@@ -55,6 +55,26 @@ const CORPORATE_KEYWORDS = [
   "office",
   "employees",
   "team building",
+  // Added 2026-11-25. keywordMatches is a literal whole-token match, so
+  // "team building" with a space does not cover the closed-up or hyphenated
+  // spellings - Christopher, on WC #32756: "Ticket #32756 says Teambuilding
+  // in their quote. Why did you ask what the reason is for their party? It
+  // should get the corporate quote sent." That form said "Work End of Year
+  // teambuilding" and still got a what's-the-occasion clarifier.
+  //
+  // Measured on Wine and Canvas's 49 clarifier tickets since 2026-09-01:
+  // exactly 2 carried a corporate signal the list missed - #32756
+  // ("teambuilding") and #30358 ("a team event for our departmnet"). These
+  // three spellings close both.
+  //
+  // "team event" checked separately for the obvious false positive, a sports
+  // team: of its 26 matches since 2026-01-01, ZERO are sports-related (no
+  // volleyball, soccer, dance team and so on). The phrase does appear in our
+  // own follow-up email 2 copy, but match text is built from the CUSTOMER's
+  // latest message, not ours.
+  "teambuilding",
+  "team-building",
+  "team event",
   "team bonding",
   "company event",
   "corporate",

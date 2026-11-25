@@ -1619,6 +1619,42 @@ async function main() {
       ["Additional Info: Guests: 20-30 for a birthday party", "standard"],
       ["Additional Info: bridal shower, ages 25 to 40", "standard"],
     ];
+    // Corporate spellings the space-separated "team building" keyword used to
+    // miss. WC #32756 (Eli Lilly, 13 guests, Indianapolis) wrote "Work End of
+    // Year teambuilding" and got a what's-the-occasion clarifier instead of
+    // the corporate quote. #30358 wrote "a team event for our departmnet".
+    const corporateSpellings: Array<[string, string | null]> = [
+      ["About the party: Work End of Year teambuilding", "corporate"],
+      ["Additional Info: team-building afternoon for the department", "corporate"],
+      ["Additional Info: We are trying to schedule a team event for our departmnet", "corporate"],
+      // Already worked - here so a future edit cannot drop them while adding
+      // the new spellings.
+      ["Additional Info: team building day", "corporate"],
+      ["Additional Info: team bonding for the office", "corporate"],
+    ];
+    for (const [text, want] of corporateSpellings) {
+      const got = classify(text);
+      if (got !== want) {
+        throw new Error(
+          `ASSERTION FAILED: "${text}" classified as "${got}", expected "${want}". keywordMatches is a literal ` +
+            `whole-token match, so each spelling of team building needs its own entry in CORPORATE_KEYWORDS - ` +
+            `otherwise a corporate booking gets asked what the occasion is (WC #32756).`
+        );
+      }
+    }
+    // A sports team is NOT corporate - the reason "team event" was checked
+    // against live data before being added (0 of its 26 matches were sports).
+    for (const [text, mustNotBe] of [
+      ["Additional Info: party for my daughter's volleyball team, ages 12-14", "corporate"],
+    ] as Array<[string, string]>) {
+      const got = classify(text);
+      if (got === mustNotBe) {
+        throw new Error(
+          `ASSERTION FAILED: "${text}" classified as "${got}". A youth sports team must not be priced as a ` +
+            `corporate booking.`
+        );
+      }
+    }
     for (const [text, want] of adult) {
       const got = classify(text);
       if (got !== want) throw new Error(`ASSERTION FAILED: "${text}" classified as "${got}", expected "${want}". An adult birthday must never get the Cookies & Canvas kids template.`);
